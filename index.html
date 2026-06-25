@@ -1331,10 +1331,13 @@
         titleEl.textContent = titles[name] || 'Jaycy · 客户跟进';
         backBtn.classList.toggle('show', name !== 'home');
 
-        if (name === 'inquiries') this.renderInquiryList();
-        if (name === 'orders') this.renderOrderList();
-        if (name === 'home') this.renderHome();
-        if (name === 'paste') this.renderPaste();
+        // 用 requestAnimationFrame 确保 Safari 在 DOM 更新后渲染
+        requestAnimationFrame(() => {
+          if (name === 'inquiries') this.renderInquiryList();
+          if (name === 'orders') this.renderOrderList();
+          if (name === 'home') this.renderHome();
+          if (name === 'paste') this.renderPaste();
+        });
       },
 
       showEntry(type) {
