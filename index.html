@@ -444,6 +444,14 @@
       padding: 16px;
       box-shadow: var(--shadow);
       text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+    }
+
+    .stat-card:active {
+      transform: scale(0.98);
+      box-shadow: 0 0 0 2px var(--primary-light);
     }
 
     .stat-value {
@@ -790,19 +798,19 @@
         <div class="card">
           <div class="card-title">📊 今日概览</div>
           <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card" onclick="app.showSection('inquiries')">
               <div class="stat-value" id="stat-inquiry-today">0</div>
               <div class="stat-label">今日咨询</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="app.showSection('orders')">
               <div class="stat-value" id="stat-order-today">0</div>
               <div class="stat-label">今日成单</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="app.showSection('inquiries')">
               <div class="stat-value" id="stat-inquiry-total">0</div>
               <div class="stat-label">总咨询</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="app.showSection('orders')">
               <div class="stat-value" id="stat-order-total">0</div>
               <div class="stat-label">总成单</div>
             </div>
@@ -1429,14 +1437,38 @@
 
       filterInquiry(level) {
         this.currentFilter.inquiries = level;
-        document.querySelectorAll('#section-inquiries .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === level));
+        this.currentFilter.inquiryToday = false;
+        document.querySelectorAll('#section-inquiries .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === level && !this.currentFilter.inquiryToday));
+        this.renderInquiryList();
+      },
+
+      filterInquiryToday() {
+        this.currentFilter.inquiryToday = true;
+        document.querySelectorAll('#section-inquiries .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'today'));
         this.renderInquiryList();
       },
 
       filterOrder(status) {
         this.currentFilter.orders = status;
-        document.querySelectorAll('#section-orders .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === status));
+        this.currentFilter.orderToday = false;
+        document.querySelectorAll('#section-orders .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === status && !this.currentFilter.orderToday));
         this.renderOrderList();
+      },
+
+      filterOrderToday() {
+        this.currentFilter.orderToday = true;
+        document.querySelectorAll('#section-orders .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'today'));
+        this.renderOrderList();
+      },
+
+      viewTodayInquiries() {
+        this.showSection('inquiries');
+        this.filterInquiryToday();
+      },
+
+      viewTodayOrders() {
+        this.showSection('orders');
+        this.filterOrderToday();
       },
 
       renderInquiryList() {
@@ -1600,16 +1632,18 @@
       },
 
       exportInquiries() {
+        this.loadData(); // 确保从 localStorage 读取最新数据
         const headers = ['首询日期', '微信名', '计划出行日期', '天数', '人数', '意向套餐', '状态', '意向程度', '跟进-1', '跟进-2', '跟进-3'];
         const rows = this.data.inquiries.map(i => [
           i.firstInquiryDate, i.wechatName, i.plannedTravelDate, i.days, i.people,
           i.interestedPackage, i.status, i.intentionLevel, i.followUp1, i.followUp2, i.followUp3
         ]);
         this.downloadCSV('咨询表_' + new Date().toISOString().split('T')[0] + '.csv', [headers, ...rows]);
-        this.showToast('咨询表已导出');
+        this.showToast(`咨询表已导出，共 ${rows.length} 条`);
       },
 
       exportOrders() {
+        this.loadData(); // 确保从 localStorage 读取最新数据
         const headers = ['序号', '接单号', '订单状态', '拉群日期', '出行日期（团期）', '产品', '结束日期', '客户信息', '联系方式', '人数', '房型', '总价（AUD）', '付款方式', '付款状态', '尾款日期', '备注', '评价'];
         const rows = this.data.orders.map(o => [
           o.seq, o.handler, o.orderStatus, o.groupDate, o.travelDate, o.product, o.endDate,
@@ -1617,7 +1651,7 @@
           o.paymentStatus, o.finalDate, o.notes, o.review
         ]);
         this.downloadCSV('成单表_' + new Date().toISOString().split('T')[0] + '.csv', [headers, ...rows]);
-        this.showToast('成单表已导出');
+        this.showToast(`成单表已导出，共 ${rows.length} 条`);
       },
 
       exportAll() {
@@ -1779,21 +1813,22 @@
           followUp3: ''
         };
 
-        // 提取微信名："客户XXX"、"XXX问我"、"XXX咨询"
+        // 提取微信名：支持更多格式
         const namePatterns = [
-          /客户[:：]?\s*([^，。\s\d]{2,20})(?=[,，。\s])/,
-          /([^，。\s]{2,20})\s*(?:问|咨询|想|要)/,
-          /(?:微信名|昵称)[:：]?\s*([^，。\s]+)/
+          /(?:客户|姓名|名字|昵称|微信名)[:：]\s*([^，。\s\d]{1,20})(?=[,，。\s])/,
+          /([^，。\s]{2,15})\s*(?:加微信|加我|问我|咨询|想|要|说)/,
+          /(?:客户|微信名|昵称)\s*[:：]?\s*([^，。\s]{1,20})/,
+          /^\s*([^，。\s]{2,15})\s*[:：]/
         ];
         for (const p of namePatterns) {
           const m = text.match(p);
-          if (m && m[1]) {
+          if (m && m[1] && m[1].length >= 2 && !/^(客户|咨询|想|要|说|微信|昵称|姓名|名字)/.test(m[1])) {
             result.wechatName = m[1].trim();
             break;
           }
         }
 
-        // 提取日期范围：6.20-23、7.1-7.10（先匹配范围，避免被单日期覆盖）
+        // 提取日期范围（先匹配范围，避免被单日期覆盖）
         // 中文格式：6月23-26、6月23号到26号
         const chineseRangeMatch = text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?\s*[-~～]\s*(\d{1,2})(?:日|号)?/);
         if (chineseRangeMatch) {
@@ -1815,7 +1850,7 @@
             /(\d{1,2}[\.\-/]\d{1,2}(?:[\.\-/]\d{1,2})?)/,
             /(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)?/,
             /(\d{1,2}\s*月\s*\d{1,2}\s*日?)/,
-            /(六七月|七八月|年底|明年|暑假|寒假)/
+            /(六七月|七八月|年底|明年|暑假|寒假|国庆|春节)/
           ];
           for (const p of datePatterns) {
             const m = text.match(p);
@@ -1833,41 +1868,123 @@
         // 提取天数
         const daysMatch = text.match(/(\d+)\s*(?:个)?\s*天/) || text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个)?\s*天/);
         if (daysMatch) {
-          result.days = daysMatch[1];
+          result.days = this.cnNumberToDigit(daysMatch[1]);
         }
 
         // 提取人数
-        const peopleMatch = text.match(/(\d+)\s*(?:个)?\s*人/) || text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个)?\s*个人?/);
-        if (peopleMatch) {
-          result.people = peopleMatch[1];
-        }
+        result.people = this.extractPeople(text);
 
         // 提取套餐
-        const packageKeywords = [
-          '粉湖超值', '粉湖轻奢', '粉湖两日游', '粉湖三日游', '粉湖一日',
-          '粉湖', '波浪岩', '玛格丽特河', '罗岛', '全景七日', '明星六日',
-          '浪漫五日', '纯玩三日', '轻松四日', '一日游', '两日游', '三日游', '四日游', '五日游', '六日游', '七日游'
-        ];
-        const foundPackages = [];
-        for (const kw of packageKeywords) {
-          if (text.includes(kw)) {
-            // 避免重复：如果已匹配的某个词包含当前词，则跳过
-            const isContained = foundPackages.some(existing => existing.includes(kw));
-            if (!isContained) foundPackages.push(kw);
-          }
-        }
-        if (foundPackages.length > 0) {
-          result.interestedPackage = foundPackages.join(' ');
+        result.interestedPackage = this.extractPackages(text).join(' ');
+
+        // 状态推断
+        if (text.includes('还没定') || text.includes('再考虑') || text.includes('考虑一下') || text.includes('再看看') || text.includes('只是问问')) {
+          result.status = '再考虑';
+        } else if (text.includes('无回复') || text.includes('没回复') || text.includes('不回') || text.includes('不回复')) {
+          result.status = '无回复';
+        } else if (text.includes('确定了') || text.includes('要订') || text.includes('要定') || text.includes('想订') || text.includes('意向')) {
+          result.status = '确定意向';
         }
 
         // 意向程度
-        if (text.includes('意向很高') || text.includes('本周付款') || text.includes('确定了') || text.includes('已定') || text.includes('付定金')) {
+        if (text.includes('意向很高') || text.includes('本周付款') || text.includes('确定了') || text.includes('已定') || text.includes('付定金') || text.includes('要订') || text.includes('想订')) {
           result.intentionLevel = '高';
-        } else if (text.includes('只是咨询') || text.includes('暂时不需要') || text.includes('无回复') || text.includes('没回复')) {
+        } else if (text.includes('只是咨询') || text.includes('暂时不需要') || text.includes('无回复') || text.includes('没回复') || text.includes('再看看') || text.includes('再考虑')) {
           result.intentionLevel = '低';
         }
 
         return result;
+      },
+
+      // 智能粘贴辅助函数
+      cnNumberToDigit(str) {
+        const map = { '一': '1', '两': '2', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' };
+        return map[str] || str;
+      },
+
+      extractPeople(text) {
+        // 数字：3个人、3人、三口人、一家三口
+        const numMatch = text.match(/(\d+)\s*(?:个)?\s*口?\s*人/);
+        if (numMatch) return numMatch[1];
+
+        // 中文：两个人、一家三口、两位
+        const cnMatch = text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个|位|口)?\s*(?:人|口|个人)?/);
+        if (cnMatch) return this.cnNumberToDigit(cnMatch[1]);
+
+        // 一位/两位客人
+        const guestMatch = text.match(/(一|两|二|三|四|五|六|七|八|九|十)\s*(?:位|个)\s*客/);
+        if (guestMatch) return this.cnNumberToDigit(guestMatch[1]);
+
+        return '';
+      },
+
+      extractPackages(text) {
+        const packageKeywords = [
+          '粉湖超值两日游', '粉湖轻奢两日游', '粉湖超值2日游', '粉湖轻奢2日游',
+          '粉湖两日游', '粉湖三日游', '粉湖一日游', '粉湖2日游', '粉湖3日游', '粉湖1日游',
+          '粉湖超值', '粉湖轻奢', '粉湖', '波浪岩', '玛格丽特河', '罗岛', '罗特尼斯岛',
+          '全景七日', '全景七日游', '明星六日', '明星六日游', '浪漫五日', '浪漫五日游',
+          '纯玩三日', '纯玩三日游', '纯玩四日', '纯玩四日游',
+          '轻松四日', '轻松四日游', '纯玩三日A', '纯玩三日B', '纯玩四日A', '纯玩四日B',
+          '一日游', '两日游', '二日游', '三日游', '四日游', '五日游', '六日游', '七日游',
+          '1日游', '2日游', '3日游', '4日游', '5日游', '6日游', '7日游'
+        ];
+        const foundPackages = [];
+        for (const kw of packageKeywords) {
+          if (text.includes(kw)) {
+            const isContained = foundPackages.some(existing => existing.includes(kw) || kw.includes(existing));
+            if (!isContained) foundPackages.push(kw);
+          }
+        }
+        return foundPackages;
+      },
+
+      extractCustomerInfo(text) {
+        const patterns = [
+          /(?:客户|姓名|名字)[:：]?\s*([^，。\s\d]{1,20})(?=[,，。\s])/,
+          /(?:客户|姓名|名字)\s*[:：]?\s*([^，。\s]{1,20})/,
+          /([^，。\s]{2,15})\s*(?:先生|女士|小姐)/,
+          /^\s*([^，。\s]{2,15})\s*[:：]/
+        ];
+        for (const p of patterns) {
+          const m = text.match(p);
+          if (m && m[1] && m[1].length >= 2 && !/^(客户|姓名|名字|电话|联系方式|微信)/.test(m[1])) {
+            return m[1].trim();
+          }
+        }
+        return '';
+      },
+
+      extractContact(text) {
+        // ��先匹配中国大陆手机号
+        const cnPhone = text.match(/(?:\+?86[-\s]?)?1[3-9]\d{9}/);
+        if (cnPhone) return cnPhone[0].trim();
+
+        // 澳大利亚手机号（以04开头，10位）或固话
+        const auPhone = text.match(/0\d{9}/);
+        if (auPhone) return auPhone[0].trim();
+
+        // 马来西亚等以6开头的号码
+        const otherPhone = text.match(/6\d{8,11}/);
+        if (otherPhone) return otherPhone[0].trim();
+
+        return '';
+      },
+
+      extractPrice(text) {
+        // 优先匹配带货币符号的价格
+        let match = text.match(/(?:总价|价格|报价|金额)?\s*(\d{3,5})(?![\d\.])\s*(?:AUD|澳币|澳大利亚元|刀|人民币|元|块|￥|¥|rmb)/i);
+        if (match) return match[1];
+
+        // 匹配货币符号在前
+        match = text.match(/(?:AUD|澳币|￥|¥)\s*(\d{3,5})(?![\d\.])/i);
+        if (match) return match[1];
+
+        // 匹配"X澳币/元/人民币"但不匹配手机号
+        match = text.match(/(?:^|\D)(\d{3,5})(?![\d\.])\s*(?:澳币|澳大利亚元|人民币|元|块|刀)/i);
+        if (match) return match[1];
+
+        return '';
       },
 
       extractOrderFields(text) {
@@ -1875,7 +1992,7 @@
         const result = {
           seq: this.data.orders.length + 1,
           handler: 'Jaycy',
-          orderStatus: text.includes('已完成') || text.includes('已结束') ? '已完成' : '未完成',
+          orderStatus: text.includes('已完成') || text.includes('已结束') || text.includes('已出行') ? '已完成' : '未完成',
           groupDate: today,
           travelDate: '',
           product: '',
@@ -1893,12 +2010,10 @@
         };
 
         // 提取客户信息
-        const nameMatch = text.match(/客户[:：]?\s*([^，。\d]{2,20})(?=[,，。\s])/);
-        if (nameMatch) result.customerInfo = nameMatch[1].trim();
+        result.customerInfo = this.extractCustomerInfo(text);
 
         // 提取联系方式
-        const phoneMatch = text.match(/(?:\+?86[-\s]?)?1[3-9]\d{9}|\d{8,11}/);
-        if (phoneMatch) result.contact = phoneMatch[0].trim();
+        result.contact = this.extractContact(text);
 
         // 提取日期范围（先匹配范围）
         // 中文格式：6月23-26、6月23号到26号
@@ -1925,50 +2040,39 @@
           }
         }
 
-        // 提取套餐/产品
-        const packageKeywords = [
-          '粉湖超值', '粉湖轻奢', '粉湖两日游', '粉湖三日游', '粉湖一日',
-          '粉湖', '波浪岩', '玛格丽特河', '罗岛', '全景七日', '明星六日',
-          '浪漫五日', '纯玩三日', '轻松四日', '一日游', '两日游', '三日游', '四日游', '五日游', '六日游', '七日游'
-        ];
-        const foundPackages = [];
-        for (const kw of packageKeywords) {
-          if (text.includes(kw)) {
-            const isContained = foundPackages.some(existing => existing.includes(kw));
-            if (!isContained) foundPackages.push(kw);
-          }
-        }
-        if (foundPackages.length > 0) result.product = foundPackages.join(' ');
+        // 提取产品
+        result.product = this.extractPackages(text).join(' ');
 
         // 提取人数
-        const peopleMatch = text.match(/(\d+)\s*(?:个)?\s*人/) || text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个)?\s*个人?/);
-        if (peopleMatch) result.people = peopleMatch[1];
+        result.people = this.extractPeople(text);
 
         // 提取房型
-        const roomMatch = text.match(/(大床房|双床房|单人间|三人房|家庭房|拼房)/);
-        if (roomMatch) result.roomType = roomMatch[1];
+        const roomMatch = text.match(/(大床房|双床房|单人间|三人房|家庭房|拼房|大床|双床|标间|标准间|单房)/);
+        if (roomMatch) result.roomType = roomMatch[1].replace(/大床$/, '大床房').replace(/双床$/, '双床房').replace(/单房$/, '单人间');
 
-        // 提取价格（优先匹配带货币符号的，避免匹配到手机号片段）
-        let priceMatch = text.match(/(?:总价|价格)?\s*(\d{3,5})(?!\d)\s*(?:AUD|澳币|人民币|元|块|刀|rmb)/i);
-        if (!priceMatch) {
-          priceMatch = text.match(/(?:总价|价格|AUD|澳币|￥|¥)\s*(\d{3,5})(?!\d)/i);
-        }
-        if (priceMatch) result.totalPrice = priceMatch[1];
+        // 提取价格
+        result.totalPrice = this.extractPrice(text);
 
-        // 付款方式和状态
+        // 付款方式
         if (text.includes('微信')) result.paymentMethod = '微信转账';
         else if (text.includes('支付宝')) result.paymentMethod = '支付宝转账';
+        else if (text.includes('银行') || text.includes('转账')) result.paymentMethod = '银行转账';
         else if (text.includes('澳币')) result.paymentMethod = '澳币转账';
         else if (text.includes('现金')) result.paymentMethod = '现金';
         else if (text.includes('携程')) result.paymentMethod = '携程下单';
+        else if (text.includes('信用卡') || text.includes('刷卡')) result.paymentMethod = '信用卡';
 
-        if (text.includes('已付全款') || text.includes('全款支付') || text.includes('已支付全款')) result.paymentStatus = '全款支付';
-        else if (text.includes('定金') || text.includes('已付定金')) result.paymentStatus = '已付定金';
+        // 付款状态
+        if (text.includes('已付全款') || text.includes('全款支付') || text.includes('已支付全款') || text.includes('全部付清')) result.paymentStatus = '全款支付';
+        else if (text.includes('已付定金') || text.includes('付了定金') || text.includes('支付定金')) result.paymentStatus = '已付定金';
         else if (text.includes('尾款')) result.paymentStatus = '待付尾款';
         else if (text.includes('结清')) result.paymentStatus = '结清';
+        else if (text.includes('已付') || text.includes('已支付')) result.paymentStatus = '已付款';
+        else if (text.includes('未付') || text.includes('未支付')) result.paymentStatus = '未付款';
 
         // 尾款日期
-        const finalDateMatch = text.match(/(?:尾款|余款)[\s\D]*(\d{1,2}[\.\-/]\d{1,2})/);
+        const finalDateMatch = text.match(/(?:尾款|余款)\s*(?:日期|时间)?\s*[:：]?\s*(\d{1,2}[\.\-/]\d{1,2})/) ||
+                               text.match(/(?:尾款|余款)\s*(?:于|在)?\s*(\d{1,2}[\.\-/]\d{1,2})/);
         if (finalDateMatch) result.finalDate = finalDateMatch[1];
 
         return result;
