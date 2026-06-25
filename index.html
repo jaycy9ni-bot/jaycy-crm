@@ -526,11 +526,11 @@
     }
 
     .section {
-      display: none;
+      display: none !important;
     }
 
     .section.active {
-      display: block;
+      display: block !important;
     }
 
     .record-detail-row {
@@ -1331,13 +1331,14 @@
         titleEl.textContent = titles[name] || 'Jaycy · 客户跟进';
         backBtn.classList.toggle('show', name !== 'home');
 
-        // 用 requestAnimationFrame 确保 Safari 在 DOM 更新后渲染
-        requestAnimationFrame(() => {
-          if (name === 'inquiries') this.renderInquiryList();
-          if (name === 'orders') this.renderOrderList();
-          if (name === 'home') this.renderHome();
-          if (name === 'paste') this.renderPaste();
-        });
+        // 强制重绘，确保 Safari 正确渲染
+        const main = document.getElementById('main');
+        if (main) main.scrollTop = 0;
+
+        if (name === 'inquiries') this.renderInquiryList();
+        if (name === 'orders') this.renderOrderList();
+        if (name === 'home') this.renderHome();
+        if (name === 'paste') this.renderPaste();
       },
 
       showEntry(type) {
