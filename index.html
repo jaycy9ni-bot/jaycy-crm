@@ -1,2228 +1,252 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0d9488" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Jaycy CRM" />
-  <title>Jaycy · 客户跟进</title>
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiSmF5Y3kgQ1JNIiwic2hvcnRfbmFtZSI6IkNSTSIsInN0YXJ0X3VybCI6Ii4vamF5Y3ktY3JtLmh0bWwiLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwidGhlbWVfY29sb3IiOiIjMGQ5NDg4In0=" />
-  <style>
-    :root {
-      --primary: #0d9488;
-      --primary-dark: #0f766e;
-      --primary-light: #ccfbf1;
-      --danger: #ef4444;
-      --danger-light: #fee2e2;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --text: #1e293b;
-      --text-secondary: #64748b;
-      --border: #e2e8f0;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100%;
-      overflow: hidden;
-    }
-
-    #app {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      max-width: 480px;
-      margin: 0 auto;
-      background: var(--bg);
-    }
-
-    header {
-      background: var(--primary);
-      color: white;
-      padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    header h1 {
-      font-size: 18px;
-      margin: 0;
-      font-weight: 600;
-      flex: 1;
-      text-align: center;
-    }
-
-    .header-back {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      cursor: pointer;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
-    }
-
-    .header-back.show {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .header-back:active {
-      background: rgba(255,255,255,0.25);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 8px;
-      margin-left: auto;
-    }
-
-    .icon-btn {
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .icon-btn:active {
-      background: rgba(255,255,255,0.25);
-    }
-
-    main {
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
-      -webkit-overflow-scrolling: touch;
-      position: relative;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: none;
-    }
-
-    .tabs::-webkit-scrollbar {
-      display: none;
-    }
-
-    .tab {
-      flex: 1;
-      min-width: 70px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-      text-align: center;
-    }
-
-    .tab.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .tab:active {
-      transform: scale(0.98);
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-      margin-bottom: 12px;
-    }
-
-    .card-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin: 0 0 12px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
-    }
-
-    input, select, textarea {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 15px;
-      background: var(--bg);
-      color: var(--text);
-      -webkit-appearance: none;
-      appearance: none;
-    }
-
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      background: white;
-    }
-
-    textarea {
-      min-height: 80px;
-      resize: vertical;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-primary:active {
-      background: var(--primary-dark);
-    }
-
-    .btn-secondary {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:active {
-      background: var(--border);
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      color: white;
-    }
-
-    .btn-danger:active {
-      background: #dc2626;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .btn-group .btn {
-      flex: 1;
-    }
-
-    .search-box {
-      position: relative;
-      margin-bottom: 12px;
-    }
-
-    .search-box input {
-      padding-left: 40px;
-    }
-
-    .search-box::before {
-      content: "🔍";
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 16px;
-    }
-
-    .record-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .record-item {
-      background: var(--card);
-      border-radius: 14px;
-      padding: 14px;
-      box-shadow: var(--shadow);
-      cursor: pointer;
-      transition: transform 0.15s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .record-item:active {
-      transform: scale(0.99);
-    }
-
-    .record-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 8px;
-    }
-
-    .record-name {
-      font-weight: 600;
-      font-size: 15px;
-      word-break: break-all;
-    }
-
-    .record-status {
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 20px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .status-high { background: #dcfce7; color: #166534; }
-    .status-medium { background: #fef3c7; color: #92400e; }
-    .status-low { background: #fee2e2; color: #991b1b; }
-    .status-done { background: #dbeafe; color: #1e40af; }
-    .status-unfinished { background: #f3e8ff; color: #7c3aed; }
-    .status-default { background: var(--bg); color: var(--text-secondary); }
-
-    .record-meta {
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.6;
-    }
-
-    .record-meta span {
-      display: inline-block;
-      margin-right: 10px;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .badge-primary { background: var(--primary-light); color: var(--primary-dark); }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--text-secondary);
-    }
-
-    .empty-state-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 100;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .modal.show {
-      display: flex;
-    }
-
-    .modal-content {
-      background: var(--card);
-      width: 100%;
-      max-width: 480px;
-      max-height: 90vh;
-      border-radius: 24px 24px 0 0;
-      padding: 20px;
-      overflow-y: auto;
-      animation: slideUp 0.25s ease-out;
-    }
-
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .modal-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .modal-close {
-      background: none;
-      border: none;
-      font-size: 24px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 0;
-      width: 36px;
-      height: 36px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .stat-card {
-      background: var(--card);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-      text-align: center;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-      -webkit-tap-highlight-color: rgba(0,0,0,0.05);
-    }
-
-    .stat-card:active {
-      transform: scale(0.98);
-      box-shadow: 0 0 0 2px var(--primary-light);
-    }
-
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--primary);
-      margin: 0;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-top: 4px;
-    }
-
-    .quick-actions {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .quick-btn {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .quick-btn:active {
-      background: var(--primary-light);
-      border-color: var(--primary);
-    }
-
-    .quick-btn-icon {
-      font-size: 28px;
-      margin-bottom: 6px;
-    }
-
-    .quick-btn-label {
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: rgba(0,0,0,0.85);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 24px;
-      font-size: 14px;
-      opacity: 0;
-      transition: all 0.3s;
-      z-index: 200;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .section {
-      display: none;
-    }
-
-    .section.active {
-      display: block;
-      transform: translateZ(0);
-      will-change: transform;
-    }
-
-    .record-detail-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 14px;
-    }
-
-    .record-detail-label {
-      color: var(--text-secondary);
-      flex-shrink: 0;
-      margin-right: 12px;
-    }
-
-    .record-detail-value {
-      text-align: right;
-      word-break: break-all;
-    }
-
-    .ios-toggle {
-      display: none;
-    }
-
-    .checkbox-group {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .chip {
-      padding: 8px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .chip.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .date-display {
-      font-size: 12px;
-      color: var(--text-secondary);
-      text-align: center;
-      margin-top: 4px;
-    }
-
-    .bottom-nav {
-      display: flex;
-      background: var(--card);
-      border-top: 1px solid var(--border);
-      padding: 8px env(safe-area-inset-right) calc(8px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
-      flex-shrink: 0;
-    }
-
-    .nav-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 0;
-      cursor: pointer;
-      color: var(--text-secondary);
-      font-size: 11px;
-      transition: color 0.2s;
-    }
-
-    .nav-item.active {
-      color: var(--primary);
-    }
-
-    .nav-item-icon {
-      font-size: 22px;
-    }
-
-    .export-options {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .export-btn {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-      text-align: center;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .export-btn:active {
-      background: var(--primary-light);
-      border-color: var(--primary);
-    }
-
-    .danger-zone {
-      border: 1px solid var(--danger-light);
-      background: #fffafa;
-    }
-
-    .danger-zone .card-title {
-      color: var(--danger);
-    }
-
-    .voice-btn {
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: var(--primary-light);
-      border: none;
-      border-radius: 50%;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      color: var(--primary-dark);
-      cursor: pointer;
-    }
-
-    .voice-btn:active {
-      background: var(--primary);
-      color: white;
-    }
-
-    .voice-btn.recording {
-      background: var(--danger);
-      color: white;
-      animation: pulse 1s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    .input-with-voice {
-      position: relative;
-    }
-
-    .input-with-voice input,
-    .input-with-voice textarea {
-      padding-right: 44px;
-    }
-
-    .paste-textarea {
-      min-height: 160px;
-      font-size: 15px;
-      line-height: 1.6;
-    }
-
-    .parse-result {
-      background: #f0fdf4;
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 16px;
-      border: 1px solid #bbf7d0;
-    }
-
-    .parse-result-title {
-      font-weight: 600;
-      color: #166534;
-      margin-bottom: 10px;
-      font-size: 15px;
-    }
-
-    .parse-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px dashed #bbf7d0;
-      font-size: 14px;
-    }
-
-    .parse-item:last-child {
-      border-bottom: none;
-    }
-
-    .parse-label {
-      color: #166534;
-      font-weight: 500;
-    }
-
-    .parse-value {
-      color: var(--text);
-      text-align: right;
-      max-width: 60%;
-      word-break: break-all;
-    }
-
-    .paste-mode-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .paste-mode-tab {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-      text-align: center;
-    }
-
-    .paste-mode-tab.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    .voice-tip {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 8px;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <div id="app">
-    <header>
-      <button class="header-back" id="header-back" onclick="app.showSection('home')" title="返回首页">←</button>
-      <h1 id="header-title">Jaycy · 客户跟进</h1>
-      <div class="header-actions">
-        <button class="icon-btn" onclick="app.showStats()" title="统计">📊</button>
-        <button class="icon-btn" onclick="app.showSettings()" title="设置">⚙️</button>
-      </div>
-    </header>
-
-    <main id="main">
-      <!-- 首页 / 快速录入 -->
-      <section id="section-home" class="section active">
-        <div class="quick-actions">
-          <div class="quick-btn" onclick="app.showEntry('inquiry')">
-            <div class="quick-btn-icon">📝</div>
-            <div class="quick-btn-label">录咨询</div>
-          </div>
-          <div class="quick-btn" onclick="app.showEntry('order')">
-            <div class="quick-btn-icon">💰</div>
-            <div class="quick-btn-label">录成单</div>
-          </div>
-          <div class="quick-btn" onclick="app.showSection('paste')">
-            <div class="quick-btn-icon">📋</div>
-            <div class="quick-btn-label">粘贴录入</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">📊 今日概览</div>
-          <div class="stats-grid">
-            <div class="stat-card" onclick="app.showSection('inquiries')">
-              <div class="stat-value" id="stat-inquiry-today">0</div>
-              <div class="stat-label">今日咨询</div>
-            </div>
-            <div class="stat-card" onclick="app.showSection('orders')">
-              <div class="stat-value" id="stat-order-today">0</div>
-              <div class="stat-label">今日成单</div>
-            </div>
-            <div class="stat-card" onclick="app.showSection('inquiries')">
-              <div class="stat-value" id="stat-inquiry-total">0</div>
-              <div class="stat-label">总咨询</div>
-            </div>
-            <div class="stat-card" onclick="app.showSection('orders')">
-              <div class="stat-value" id="stat-order-total">0</div>
-              <div class="stat-label">总成单</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">🔥 高意向客户</div>
-          <div id="high-intent-list" class="record-list"></div>
-        </div>
-      </section>
-
-      <!-- 智能粘贴页 -->
-      <section id="section-paste" class="section">
-        <div class="paste-mode-tabs">
-          <div class="paste-mode-tab active" onclick="app.switchPasteMode('inquiry')" id="paste-tab-inquiry">📋 粘贴咨询</div>
-          <div class="paste-mode-tab" onclick="app.switchPasteMode('order')" id="paste-tab-order">💰 粘贴成单</div>
-        </div>
-
-        <div class="card">
-          <div class="card-title" id="paste-title">📋 粘贴聊天记录，自动识别字段</div>
-          <div class="form-group">
-            <label>把客户/群聊消息直接粘贴到这里</label>
-            <textarea id="paste-text" class="paste-textarea" placeholder="例如：客户问我6月20号到23号想去西澳，4个人，想看粉湖和波浪岩，预算大概3000澳币左右，想要轻奢团..."></textarea>
-          </div>
-          <button class="btn btn-primary" onclick="app.parsePaste()">🔍 识别并填入</button>
-          <div class="voice-tip">💡 也可以直接语音输入：点击输入框后点键盘上的麦克风图标</div>
-        </div>
-
-        <div id="paste-result" class="hidden">
-          <div class="parse-result">
-            <div class="parse-result-title">识别结果（可修改）</div>
-            <div id="paste-fields"></div>
-          </div>
-          <button class="btn btn-primary" onclick="app.savePaste()">✅ 确认保存</button>
-        </div>
-
-        <div class="card">
-          <div class="card-title">💡 粘贴示例</div>
-          <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">
-            <b>咨询示例：</b><br>
-            「客户Mako，5月31日问的，想6月23-26去西澳，3个人，意向粉湖两日游+波浪岩一日，还在等拼房」<br><br>
-            <b>成单示例：</b><br>
-            「客户张三，电话13900000000，已定7月4日粉湖超值两日游，2人，大床房，总价738澳币，已付定金369澳币」
-          </p>
-        </div>
-      </section>
-
-      <!-- 录入页 -->
-      <section id="section-entry" class="section">
-        <div class="tabs">
-          <button class="tab active" onclick="app.switchEntryType('inquiry')" id="tab-inquiry">咨询</button>
-          <button class="tab" onclick="app.switchEntryType('order')" id="tab-order">成单</button>
-        </div>
-
-        <div id="form-inquiry">
-          <div class="card">
-            <div class="card-title">📝 录入新咨询</div>
-            <button class="btn btn-secondary" onclick="app.startVoice('inq-followup1')" id="inq-voice-btn" style="margin-bottom:12px">🎤 按住说话（自动填入跟进记录）</button>
-            <div class="form-row">
-              <div class="form-group">
-                <label>首询日期</label>
-                <input type="date" id="inq-firstDate" />
-              </div>
-              <div class="form-group input-with-voice">
-                <label>微信名</label>
-                <input type="text" id="inq-wechatName" placeholder="客户微信昵称" />
-                <button class="voice-btn" onclick="app.startVoice('inq-wechatName')" title="语音输入">🎤</button>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>计划出行日期</label>
-                <input type="text" id="inq-travelDate" placeholder="如：2026.7.1-7.10" />
-              </div>
-              <div class="form-group">
-                <label>天数</label>
-                <input type="text" id="inq-days" placeholder="如：5" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>人数</label>
-                <input type="text" id="inq-people" placeholder="如：2" />
-              </div>
-              <div class="form-group">
-                <label>意向套餐</label>
-                <input type="text" id="inq-package" placeholder="如：粉湖两日游" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group input-with-voice">
-                <label>状态</label>
-                <input type="text" id="inq-status" placeholder="如：无回复 / 持续跟进" />
-                <button class="voice-btn" onclick="app.startVoice('inq-status')" title="语音输入">🎤</button>
-              </div>
-              <div class="form-group">
-                <label>意向程度</label>
-                <select id="inq-intention">
-                  <option value="高">高</option>
-                  <option value="中" selected>中</option>
-                  <option value="低">低</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group input-with-voice">
-              <label>跟进-1</label>
-              <textarea id="inq-followup1" placeholder="第一次跟进记录"></textarea>
-              <button class="voice-btn" onclick="app.startVoice('inq-followup1')" title="语音输入">🎤</button>
-            </div>
-            <div class="form-group input-with-voice">
-              <label>跟进-2</label>
-              <textarea id="inq-followup2" placeholder="第二次跟进记录"></textarea>
-              <button class="voice-btn" onclick="app.startVoice('inq-followup2')" title="语音输入">🎤</button>
-            </div>
-            <div class="form-group input-with-voice">
-              <label>跟进-3</label>
-              <textarea id="inq-followup3" placeholder="第三次跟进记录"></textarea>
-              <button class="voice-btn" onclick="app.startVoice('inq-followup3')" title="语音输入">🎤</button>
-            </div>
-            <button class="btn btn-primary" onclick="app.saveInquiry()">保存咨询</button>
-          </div>
-        </div>
-
-        <div id="form-order" class="hidden">
-          <div class="card">
-            <div class="card-title">💰 录入新成单</div>
-            <button class="btn btn-secondary" onclick="app.startVoice('ord-notes')" id="ord-voice-btn" style="margin-bottom:12px">🎤 按住说话（自动填入备注）</button>
-            <div class="form-row">
-              <div class="form-group">
-                <label>接单号</label>
-                <input type="text" id="ord-handler" value="Jaycy" />
-              </div>
-              <div class="form-group">
-                <label>订单状态</label>
-                <select id="ord-orderStatus">
-                  <option value="已完成">已完成</option>
-                  <option value="未完成">未完成</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>拉群日期</label>
-                <input type="date" id="ord-groupDate" />
-              </div>
-              <div class="form-group">
-                <label>出行日期（团期）</label>
-                <input type="text" id="ord-travelDate" placeholder="如：2026.7.1-7.5" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>产品</label>
-              <input type="text" id="ord-product" placeholder="如：粉湖轻奢两日游" />
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>结束日期</label>
-                <input type="text" id="ord-endDate" placeholder="如：7.3晚" />
-              </div>
-              <div class="form-group">
-                <label>人数</label>
-                <input type="text" id="ord-people" placeholder="如：2" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group input-with-voice">
-                <label>客户信息</label>
-                <input type="text" id="ord-customerInfo" placeholder="如：张三（男）" />
-                <button class="voice-btn" onclick="app.startVoice('ord-customerInfo')" title="语音输入">🎤</button>
-              </div>
-              <div class="form-group input-with-voice">
-                <label>联系方式</label>
-                <input type="text" id="ord-contact" placeholder="电话号码" />
-                <button class="voice-btn" onclick="app.startVoice('ord-contact')" title="语音输入">🎤</button>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>房型</label>
-                <input type="text" id="ord-roomType" placeholder="如：大床房" />
-              </div>
-              <div class="form-group">
-                <label>总价（AUD）</label>
-                <input type="text" id="ord-totalPrice" placeholder="如：1198" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>付款方式</label>
-                <input type="text" id="ord-paymentMethod" placeholder="如：微信转账" />
-              </div>
-              <div class="form-group">
-                <label>付款状态</label>
-                <input type="text" id="ord-paymentStatus" placeholder="如：定金 / 全款 / 结清" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>尾款日期</label>
-              <input type="text" id="ord-finalDate" placeholder="如：6.18" />
-            </div>
-            <div class="form-group input-with-voice">
-              <label>备注</label>
-              <textarea id="ord-notes" placeholder="特殊说明"></textarea>
-              <button class="voice-btn" onclick="app.startVoice('ord-notes')" title="语音输入">🎤</button>
-            </div>
-            </div>
-            <div class="form-group">
-              <label>评价</label>
-              <textarea id="ord-review" placeholder="客户反馈"></textarea>
-            </div>
-            <button class="btn btn-primary" onclick="app.saveOrder()">保存成单</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- 咨询列表 -->
-      <section id="section-inquiries" class="section">
-        <div class="search-box">
-          <input type="text" id="inq-search" placeholder="搜索微信名、套餐、状态..." oninput="app.renderInquiryList()" />
-        </div>
-        <div class="checkbox-group" style="margin-bottom:12px">
-          <span class="chip active" onclick="app.filterInquiry('all')" data-filter="all">全部</span>
-          <span class="chip" onclick="app.filterInquiry('高')" data-filter="高">高意向</span>
-          <span class="chip" onclick="app.filterInquiry('中')" data-filter="中">中意向</span>
-          <span class="chip" onclick="app.filterInquiry('低')" data-filter="低">低意向</span>
-        </div>
-        <div id="inquiry-list" class="record-list"></div>
-      </section>
-
-      <!-- 成单列表 -->
-      <section id="section-orders" class="section">
-        <div class="search-box">
-          <input type="text" id="ord-search" placeholder="搜索客户、产品、状态..." oninput="app.renderOrderList()" />
-        </div>
-        <div class="checkbox-group" style="margin-bottom:12px">
-          <span class="chip active" onclick="app.filterOrder('all')" data-filter="all">全部</span>
-          <span class="chip" onclick="app.filterOrder('已完成')" data-filter="已完成">已完成</span>
-          <span class="chip" onclick="app.filterOrder('未完成')" data-filter="未完成">未完成</span>
-        </div>
-        <div id="order-list" class="record-list"></div>
-      </section>
-    </main>
-
-    <nav class="bottom-nav">
-      <div class="nav-item active" onclick="app.showSection('home')">
-        <span class="nav-item-icon">🏠</span>
-        <span>首页</span>
-      </div>
-      <div class="nav-item" onclick="app.showSection('paste')">
-        <span class="nav-item-icon">📋</span>
-        <span>粘贴</span>
-      </div>
-      <div class="nav-item" onclick="app.showSection('entry')">
-        <span class="nav-item-icon">➕</span>
-        <span>录入</span>
-      </div>
-      <div class="nav-item" onclick="app.showSection('inquiries')">
-        <span class="nav-item-icon">📝</span>
-        <span>咨询</span>
-      </div>
-      <div class="nav-item" onclick="app.showSection('orders')">
-        <span class="nav-item-icon">💰</span>
-        <span>成单</span>
-      </div>
-    </nav>
-  </div>
-
-  <!-- 详情/编辑弹窗 -->
-  <div id="modal" class="modal" onclick="app.closeModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 class="modal-title" id="modal-title">详情</h3>
-        <button class="modal-close" onclick="app.closeModal()">×</button>
-      </div>
-      <div id="modal-body"></div>
-      <div class="btn-group" id="modal-actions"></div>
-    </div>
-  </div>
-
-  <!-- 设置弹窗 -->
-  <div id="settings-modal" class="modal" onclick="app.closeSettings(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 class="modal-title">设置</h3>
-        <button class="modal-close" onclick="app.closeSettings()">×</button>
-      </div>
-      <div class="export-options">
-        <div class="export-btn" onclick="app.exportInquiries()">📄 导出咨询表</div>
-        <div class="export-btn" onclick="app.exportOrders()">📄 导出成单表</div>
-      </div>
-      <div class="card danger-zone">
-        <div class="card-title">⚠️ 危险操作</div>
-        <button class="btn btn-secondary" onclick="app.exportAll()">💾 备份全部数据</button>
-        <div style="height:10px"></div>
-        <button class="btn btn-danger" onclick="app.clearAll()">🗑️ 清空所有数据</button>
-      </div>
-      <div class="card">
-        <div class="card-title">ℹ️ 关于</div>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.6">
-          数据仅保存在本机浏览器中，不会上传到服务器。<br>
-          建议定期导出备份，防止数据丢失。<br>
-          版本：1.0
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast"></div>
-
-  <script>
-    const app = {
-      data: {
-        inquiries: [],
-        orders: []
-      },
-      currentFilter: { inquiries: 'all', orders: 'all' },
-
-      init() {
-        this.loadData();
-        this.seedInitialData();
-        this.setTodayDate();
-        this.renderAll();
-        this.checkUrlParams();
-      },
-
-      loadData() {
-        try {
-          const inq = localStorage.getItem('jaycy_inquiries');
-          const ord = localStorage.getItem('jaycy_orders');
-          if (inq) this.data.inquiries = JSON.parse(inq);
-          if (ord) this.data.orders = JSON.parse(ord);
-        } catch (e) {
-          console.error('加载数据失败', e);
-        }
-      },
-
-      saveData() {
-        localStorage.setItem('jaycy_inquiries', JSON.stringify(this.data.inquiries));
-        localStorage.setItem('jaycy_orders', JSON.stringify(this.data.orders));
-      },
-
-      seedInitialData() {
-        if (this.data.inquiries.length > 0 || this.data.orders.length > 0) return;
-
-        const initialInquiries = [
-          { firstInquiryDate: '2026-05-31', wechatName: 'Mako', plannedTravelDate: '/', days: '/', people: '暂时不确定', interestedPackage: '/', status: '无回复', intentionLevel: '低', followUp1: '5.31发送四条路线介绍和沟通询问无回复', followUp2: '6.2发送6/7月特价活动介绍后无回复', followUp3: '' },
-          { firstInquiryDate: '2026-05-11', wechatName: 'Leslie Toh', plannedTravelDate: '2026.5.25-5.29', days: '2', people: '2', interestedPackage: '粉湖两日游', status: '后续无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-11', wechatName: 'Ashley~', plannedTravelDate: '2026.9.25-10.7', days: '11~12', people: '', interestedPackage: '全景七日游', status: '先考虑去东澳了 后续再考虑西澳', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-12', wechatName: '越', plannedTravelDate: '6.12', days: '2', people: '2', interestedPackage: '粉湖两日游', status: '有个朋友也想去还在等待回复', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-13', wechatName: 'ci ci massage', plannedTravelDate: '/', days: '3', people: '', interestedPackage: '', status: '只是咨询暂无计划 以后考虑老人坐不了那么久的飞机', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-13', wechatName: '哈密瓜杀手', plannedTravelDate: '2026.5.18-5.19', days: '2', people: '2', interestedPackage: '粉湖两日游', status: '5.18无粉湖两日游团 无法改时间和增加天数 也不想要单日游', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-13', wechatName: '六六', plannedTravelDate: '2026.5.25', days: '2', people: '', interestedPackage: '粉湖两日/三日游', status: '不是很能接受发团人数15人以上', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-13', wechatName: 'Fleur', plannedTravelDate: '六七月', days: '5', people: '2', interestedPackage: '浪漫五日游', status: '5.20逼单5.24说想和朋友一起后无回复', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-14', wechatName: '虹野纱希', plannedTravelDate: '2026.5.26-5.31', days: '4', people: '5', interestedPackage: '粉湖三日游', status: '想包车但觉得价格贵 跟团27号没有粉湖团 五日团时间对不上 后续推荐不回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-14', wechatName: 'Eudora', plannedTravelDate: '2026.5月底', days: '', people: '1', interestedPackage: '纯粹六日游', status: '持续跟进一周多 每次询问后逼单就不回复', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-15', wechatName: 'L', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-16', wechatName: 'guuucccg', plannedTravelDate: '明年', days: '', people: '4—5', interestedPackage: '', status: '觉得现在订明年的行程还太早', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-17', wechatName: '骨头的云', plannedTravelDate: '2026.6.19-6.23', days: '5', people: '1', interestedPackage: '', status: '推荐套餐后再无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-17', wechatName: 'Pochacco', plannedTravelDate: '2026.6.4', days: '2', people: '2', interestedPackage: '粉湖两日游', status: '后续无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-17', wechatName: '青术', plannedTravelDate: '7.1-7.10', days: '9', people: '1', interestedPackage: '粉湖三日 玛格丽特河 罗岛', status: '后续想要五日游 推荐行程后再无回复', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-17', wechatName: 'Nick Chai', plannedTravelDate: '8.14-15', days: '2', people: '4', interestedPackage: '粉湖两日游', status: '5.18逼单后再无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-18', wechatName: '林昕晔', plannedTravelDate: '8.13-8.20', days: '6', people: '5', interestedPackage: '明星六日游', status: '不想跟大团，怕行程赶，还在等待朋友回复', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-19', wechatName: 'A Joanna', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '没回复过', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-19', wechatName: '程三喜 Emma', plannedTravelDate: '/', days: '5', people: '1', interestedPackage: '五日游行程', status: '代替60岁朋友询问 不是本人有需求', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-19', wechatName: 'Penguin', plannedTravelDate: '七月底', days: '7', people: '2', interestedPackage: '全景七日游', status: '改变计划了选择别的旅游目的地', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-19', wechatName: 'y', plannedTravelDate: '7.12-13', days: '1', people: '2', interestedPackage: '一日游', status: '定错机票了 本来想去粉湖但计划被打乱了 在考虑玛格丽特河', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-20', wechatName: 'Lilith，岚', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '计划有变不需要', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-20', wechatName: 'Serendipity', plannedTravelDate: '5.23', days: '2', people: '1', interestedPackage: '粉湖两日游', status: '担心拼不到房 冬季暂时不需要了', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-20', wechatName: 'DN', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '没回复过', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-22', wechatName: '🐒', plannedTravelDate: '2026.6月', days: '5', people: '2', interestedPackage: '五日游行程', status: '后续无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-22', wechatName: 'won、🧀', plannedTravelDate: '2026.9.28', days: '4-5天', people: '暂时不确定', interestedPackage: '', status: '还在确定出游人数 等待确定好可推进', intentionLevel: '高', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-23', wechatName: 'Sabrina', plannedTravelDate: '2026.6.20', days: '1', people: '2', interestedPackage: '玛格丽特河一日', status: '时间对不上发团日期', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-24', wechatName: 'R', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: 'shen', plannedTravelDate: '/', days: '9', people: '1', interestedPackage: '', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: 'lukas', plannedTravelDate: '9.28-10.1', days: '4', people: '1', interestedPackage: '轻松四日游A', status: '在做决定 5.26逼单尝试', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: 'я_xx', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '朋友推荐的 还没有旅行计划先添加预备', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: '来一瓶木瓜牛奶吧 谢谢', plannedTravelDate: '6.23-6.26', days: '3', people: '1', interestedPackage: '粉湖两日游+波浪岩一日', status: '95折扣 意向很高 本周内付款 等待拼房', intentionLevel: '高', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: '啦啦啦', plannedTravelDate: '/', days: '', people: '', interestedPackage: '', status: '只询问了产品介绍页上的价格是人民币还是澳币', intentionLevel: '高', followUp1: '2026.5.27已成单', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-25', wechatName: '😄', plannedTravelDate: '8.6 or 8.7', days: '3', people: '2', interestedPackage: '纯玩三日游B', status: '担心八月份下雨影响拍照', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-27', wechatName: 'Tɪᴀɴ', plannedTravelDate: '六月底七月初', days: '4-5', people: '1', interestedPackage: '', status: '5.27担心不能看到粉湖', intentionLevel: '低', followUp1: '5.27发送花絮无回复', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-28', wechatName: '烟秀雨', plannedTravelDate: '/', days: '/', people: '暂时不确定', interestedPackage: '/', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-28', wechatName: '亭午夜分', plannedTravelDate: '7.13', days: '2-3', people: '2', interestedPackage: '粉湖三日游', status: '对观星项目兴趣浓厚 想要在尖峰石阵观星 担心自费项目观星活动报名不足4人开展不了', intentionLevel: '中', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-29', wechatName: '小鱼吐司', plannedTravelDate: '/', days: '/', people: '暂时不确定', interestedPackage: '/', status: '无回复', intentionLevel: '低', followUp1: '6.2发送6、7月特价活动介绍未回复', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-29', wechatName: '幸运的小李🥞', plannedTravelDate: '6.20', days: '1', people: '1', interestedPackage: '/', status: '推荐一日游行程后说需要考虑下后续无回复', intentionLevel: '低', followUp1: '6.2发送6、7月特价活动介绍无回复', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-06-02', wechatName: 'Alexandra Izzy', plannedTravelDate: '/', days: '/', people: '暂时不确定', interestedPackage: '/', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-06-02', wechatName: 'Yu Xiao Ping', plannedTravelDate: '/', days: '/', people: '暂时不确定', interestedPackage: '/', status: '无回复', intentionLevel: '低', followUp1: '', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-06-01', wechatName: 'H a z e L L', plannedTravelDate: '大概七月底八月初', days: '不确定', people: '1', interestedPackage: '', status: '推荐了感兴趣的包含粉湖罗岛波浪岩的行程后说时间还未确定先添加微信了解一下情况', intentionLevel: '中', followUp1: '6.2推进表示还未确定时间', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-31', wechatName: '大菠萝🍍', plannedTravelDate: '6.20-6.23', days: '4', people: '2', interestedPackage: '纯玩三日游A+罗岛自由行', status: '推荐和介绍详细行程后无回复', intentionLevel: '中', followUp1: '6.1发送团游花絮和公司介绍后未回复', followUp2: '', followUp3: '' },
-          { firstInquiryDate: '2026-05-31', wechatName: 'Ⱅⱄ', plannedTravelDate: '七月初', days: '3', people: '1', interestedPackage: '粉湖轻奢3日', status: '想要拼房 说等待6月确定时间', intentionLevel: '高', followUp1: '6.1发送团游花絮和小红书笔记推进后回复六月中旬再来找我们', followUp2: '', followUp3: '' }
-        ];
-
-        const initialOrders = [
-          { seq: 1, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/12', travelDate: '2026.5.22+5.23', product: '波浪岩1日游 + 粉湖超值2日游', endDate: '5.24晚', customerInfo: 'Haotian Zheng（男）', contact: '13624040323 0431086891', people: '1', roomType: '单人间', totalPrice: '684', paymentMethod: '微信转账', paymentStatus: '结清', finalDate: '5.22', notes: '', review: '未回复' },
-          { seq: 2, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/17', travelDate: '2026.6.18', product: '粉湖轻奢两日游', endDate: '6.19晚', customerInfo: 'Tan Zi Wei,女 Lim Choon Yong,男', contact: '60167075582, 60108255822', people: '2', roomType: '大床房', totalPrice: '1198', paymentMethod: '微信转账', paymentStatus: '定金599aud，微信转账2922.36人民币', finalDate: '6.18', notes: '', review: '' },
-          { seq: 3, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/18', travelDate: '2026.6.11', product: '粉湖超值两日游', endDate: '6.12晚', customerInfo: 'GeYiFei 男', contact: '86 15275163035', people: '1', roomType: '大床房', totalPrice: '499', paymentMethod: '微信转账', paymentStatus: '全款支付，微信转账2434.49', finalDate: '', notes: '', review: '' },
-          { seq: 4, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/20', travelDate: '2026.6.8', product: '粉湖超值两日游', endDate: '6.9晚', customerInfo: 'Lai Sze CHOW 女', contact: '403274561', people: '1', roomType: '大床房', totalPrice: '499', paymentMethod: '澳币转账+澳币现金', paymentStatus: '支付定金249.5澳币', finalDate: '6.8（尾款澳币249.5澳币发团当日面付导游）', notes: '', review: '' },
-          { seq: 5, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/13', travelDate: '2026.5.20', product: '明星六日游', endDate: '5.25晚', customerInfo: 'Jiatong Ma 女', contact: '61485526366', people: '1', roomType: '双床房（拼房）', totalPrice: '1329', paymentMethod: '澳币转账+澳币现金', paymentStatus: '支付定金650澳币', finalDate: '5.22现金679澳币面付导游', notes: '1.与另一位客人拼房成功。2.客诉：行程结束时要求送到指定位置被拒绝（当时已处理）', review: '未回复' },
-          { seq: 6, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/11', travelDate: '2026.5.18+5.22', product: '玛格丽特河1日游+波浪岩1日游', endDate: '5.22晚', customerInfo: 'Wang Dongsheng 男 Li Shuping 女', contact: '008613903843000', people: '2', roomType: '', totalPrice: '740', paymentMethod: '微信转账', paymentStatus: '全款支付，微信转账3655.82人民币', finalDate: '', notes: '', review: '父母对行程什么的都挺满意的，不过不知道有没有其他人反馈，去波浪岩那天的司机开车特别快，好像在赶时间，限速110的路他都开150/160这样，挺危险的，可以不要说是我说的吗？我并不想给任何人惹麻烦' },
-          { seq: 7, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/18', travelDate: '2026.6.25', product: '粉湖轻奢两日游', endDate: '6.26晚', customerInfo: 'Yijing Tao（女）Runlin Sun（女）', contact: '424995490', people: '2', roomType: '双床房', totalPrice: '1138', paymentMethod: '澳币转账+微信转账', paymentStatus: '全款支付，569澳币+2777.82人民币', finalDate: '', notes: '', review: '' },
-          { seq: 8, handler: 'Jaycy', orderStatus: '已完成', groupDate: '2026/5/14', travelDate: '2026.5.23', product: '纯玩四日游A', endDate: '5.26晚', customerInfo: 'YUCHEN JIN 女 YAQIONG HE 女', contact: '432438396 432968779', people: '2', roomType: '双床房', totalPrice: '', paymentMethod: '', paymentStatus: '', finalDate: '', notes: '', review: '' },
-          { seq: 9, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/5/17', travelDate: '2026.6.26+6.27-28', product: '波浪岩1日+粉湖超值两日游', endDate: '6.28晚', customerInfo: 'Xuan Hu 女', contact: '412009035', people: '1', roomType: '双床房（拼）', totalPrice: '544', paymentMethod: '澳币转账+人民币扫码', paymentStatus: '2026.5.27已支付定金272澳币；余尾款澳币272澳币发团当日面付导游人民币转账', finalDate: '6.26', notes: '粉湖超值两日游等待拼双人间', review: '' },
-          { seq: 10, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/5/24', travelDate: '2026.9.28', product: '轻松四日游', endDate: '9.31晚', customerInfo: 'Moxun Liu 男 Huimin Zhang 女', contact: '86 15811362619', people: '2', roomType: '大床房', totalPrice: '1958', paymentMethod: '支付宝转账', paymentStatus: '2026.5.27已支付全款人民币9558.56', finalDate: '', notes: '', review: '' },
-          { seq: 11, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/5/30', travelDate: '6.27 6.29 6.30', product: '粉湖轻奢两日游+玛格丽特河1日游+罗岛自由行一日游', endDate: '6.30', customerInfo: 'CHEN/XINXIN（女）CHEN/YUEHUA（女）', contact: '+86 15059762222', people: '2', roomType: '双床房', totalPrice: '1668', paymentMethod: '澳币转账', paymentStatus: '6.1全款支付，1668澳币', finalDate: '/', notes: '', review: '' },
-          { seq: 12, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/5/22', travelDate: '10.2、10.4', product: '10.2粉湖超值两日 10.4罗岛 10.1、10.3、10.4酒店代订四星', endDate: '10.4晚', customerInfo: 'YUNJIA ZHU 女 MENGJIE HAN 女 YUTONG LU 女', contact: '+86 13952742351；+86 15252528918', people: '3', roomType: '粉湖三人入住 代订大床房加床和双床房', totalPrice: '2297', paymentMethod: '微信转账', paymentStatus: '2026.6.13已支付全款，微信扫码付款人民币10900', finalDate: '/', notes: '10.1大床房加小床 10.3、10.4双床房', review: '' },
-          { seq: 13, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/6/9', travelDate: '7.6', product: '粉湖轻奢两日游（携程下单）', endDate: '7.7', customerInfo: 'Lu ya 女', contact: '+13477931053', people: '2', roomType: '大床房', totalPrice: '469', paymentMethod: '携程下单', paymentStatus: '已支付全款', finalDate: '/', notes: '', review: '' },
-          { seq: 14, handler: 'Jaycy', orderStatus: '未完成', groupDate: '2026/6/13', travelDate: '7.4', product: '粉湖超值两日游', endDate: '7.5', customerInfo: 'Yanlin Li 女 Bohan Chen 男', contact: '400551378', people: '2', roomType: '大床房', totalPrice: '738', paymentMethod: '2026.06.13支付定金369aud', paymentStatus: '尾款于6.28前转账澳币或者发团当日澳币现金', finalDate: '6.28 或 7.4', notes: '', review: '' }
-        ];
-
-        this.data.inquiries = initialInquiries.map(i => this.createInquiry(i));
-        this.data.orders = initialOrders.map((o, idx) => this.createOrder(o, idx + 1));
-        this.saveData();
-      },
-
-      createInquiry(data) {
-        return {
-          id: 'inq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-          firstInquiryDate: data.firstInquiryDate || '',
-          wechatName: data.wechatName || '',
-          plannedTravelDate: data.plannedTravelDate || '',
-          days: data.days || '',
-          people: data.people || '',
-          interestedPackage: data.interestedPackage || '',
-          status: data.status || '',
-          intentionLevel: data.intentionLevel || '中',
-          followUp1: data.followUp1 || '',
-          followUp2: data.followUp2 || '',
-          followUp3: data.followUp3 || '',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-      },
-
-      createOrder(data, seq) {
-        return {
-          id: 'ord_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-          seq: data.seq || seq || (this.data.orders.length + 1),
-          handler: data.handler || 'Jaycy',
-          orderStatus: data.orderStatus || '未完成',
-          groupDate: data.groupDate || '',
-          travelDate: data.travelDate || '',
-          product: data.product || '',
-          endDate: data.endDate || '',
-          customerInfo: data.customerInfo || '',
-          contact: data.contact || '',
-          people: data.people || '',
-          roomType: data.roomType || '',
-          totalPrice: data.totalPrice || '',
-          paymentMethod: data.paymentMethod || '',
-          paymentStatus: data.paymentStatus || '',
-          finalDate: data.finalDate || '',
-          notes: data.notes || '',
-          review: data.review || '',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-      },
-
-      setTodayDate() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('inq-firstDate').value = today;
-        document.getElementById('ord-groupDate').value = today;
-      },
-
-      renderAll() {
-        this.renderHome();
-        this.renderInquiryList();
-        this.renderOrderList();
-      },
-
-      renderHome() {
-        const today = new Date().toISOString().split('T')[0];
-        const inqToday = this.data.inquiries.filter(i => i.firstInquiryDate === today).length;
-        const ordToday = this.data.orders.filter(o => o.groupDate === today.replace(/-/g, '/')).length;
-
-        document.getElementById('stat-inquiry-today').textContent = inqToday;
-        document.getElementById('stat-order-today').textContent = ordToday;
-        document.getElementById('stat-inquiry-total').textContent = this.data.inquiries.length;
-        document.getElementById('stat-order-total').textContent = this.data.orders.length;
-
-        const highIntent = this.data.inquiries.filter(i => i.intentionLevel === '高').slice(0, 5);
-        const list = document.getElementById('high-intent-list');
-        if (highIntent.length === 0) {
-          list.innerHTML = '<div class="empty-state">暂无高意向客户</div>';
-          return;
-        }
-        list.innerHTML = highIntent.map(i => `
-          <div class="record-item" onclick="app.showInquiryDetail('${i.id}')">
-            <div class="record-header">
-              <div class="record-name">${this.escape(i.wechatName || '未命名')}</div>
-              <span class="record-status status-high">高意向</span>
-            </div>
-            <div class="record-meta">
-              <span>📅 ${this.escape(i.plannedTravelDate || '时间待定')}</span>
-              <span>📦 ${this.escape(i.interestedPackage || '无套餐')}</span>
-            </div>
-          </div>
-        `).join('');
-      },
-
-      showSection(name) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById('section-' + name).classList.add('active');
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        const navMap = { home: 0, paste: 1, entry: 2, inquiries: 3, orders: 4 };
-        document.querySelectorAll('.nav-item')[navMap[name]].classList.add('active');
-
-        // 更新头部：返回按钮和标题
-        const backBtn = document.getElementById('header-back');
-        const titleEl = document.getElementById('header-title');
-        const titles = {
-          home: 'Jaycy · 客户跟进',
-          paste: '粘贴录入',
-          entry: '手动录入',
-          inquiries: '咨询记录',
-          orders: '成单记录'
-        };
-        titleEl.textContent = titles[name] || 'Jaycy · 客户跟进';
-        backBtn.classList.toggle('show', name !== 'home');
-
-        // 强制重绘，确保 Safari 正确渲染
-        const main = document.getElementById('main');
-        if (main) main.scrollTop = 0;
-
-        if (name === 'inquiries') this.renderInquiryList();
-        if (name === 'orders') this.renderOrderList();
-        if (name === 'home') this.renderHome();
-        if (name === 'paste') this.renderPaste();
-      },
-
-      showEntry(type) {
-        this.showSection('entry');
-        this.switchEntryType(type);
-      },
-
-      switchEntryType(type) {
-        document.getElementById('tab-inquiry').classList.toggle('active', type === 'inquiry');
-        document.getElementById('tab-order').classList.toggle('active', type === 'order');
-        document.getElementById('form-inquiry').classList.toggle('hidden', type !== 'inquiry');
-        document.getElementById('form-order').classList.toggle('hidden', type !== 'order');
-      },
-
-      saveInquiry() {
-        const data = {
-          firstInquiryDate: document.getElementById('inq-firstDate').value,
-          wechatName: document.getElementById('inq-wechatName').value,
-          plannedTravelDate: document.getElementById('inq-travelDate').value,
-          days: document.getElementById('inq-days').value,
-          people: document.getElementById('inq-people').value,
-          interestedPackage: document.getElementById('inq-package').value,
-          status: document.getElementById('inq-status').value,
-          intentionLevel: document.getElementById('inq-intention').value,
-          followUp1: document.getElementById('inq-followup1').value,
-          followUp2: document.getElementById('inq-followup2').value,
-          followUp3: document.getElementById('inq-followup3').value
-        };
-        if (!data.wechatName) {
-          this.showToast('请填写微信名');
-          return;
-        }
-        this.data.inquiries.unshift(this.createInquiry(data));
-        this.saveData();
-        this.resetInquiryForm();
-        this.showToast('咨询已保存');
-        this.renderHome();
-      },
-
-      saveOrder() {
-        const data = {
-          handler: document.getElementById('ord-handler').value,
-          orderStatus: document.getElementById('ord-orderStatus').value,
-          groupDate: document.getElementById('ord-groupDate').value,
-          travelDate: document.getElementById('ord-travelDate').value,
-          product: document.getElementById('ord-product').value,
-          endDate: document.getElementById('ord-endDate').value,
-          customerInfo: document.getElementById('ord-customerInfo').value,
-          contact: document.getElementById('ord-contact').value,
-          people: document.getElementById('ord-people').value,
-          roomType: document.getElementById('ord-roomType').value,
-          totalPrice: document.getElementById('ord-totalPrice').value,
-          paymentMethod: document.getElementById('ord-paymentMethod').value,
-          paymentStatus: document.getElementById('ord-paymentStatus').value,
-          finalDate: document.getElementById('ord-finalDate').value,
-          notes: document.getElementById('ord-notes').value,
-          review: document.getElementById('ord-review').value
-        };
-        if (!data.customerInfo) {
-          this.showToast('请填写客户信息');
-          return;
-        }
-        this.data.orders.unshift(this.createOrder(data));
-        this.saveData();
-        this.resetOrderForm();
-        this.showToast('成单已保存');
-        this.renderHome();
-      },
-
-      resetInquiryForm() {
-        document.getElementById('inq-wechatName').value = '';
-        document.getElementById('inq-travelDate').value = '';
-        document.getElementById('inq-days').value = '';
-        document.getElementById('inq-people').value = '';
-        document.getElementById('inq-package').value = '';
-        document.getElementById('inq-status').value = '';
-        document.getElementById('inq-intention').value = '中';
-        document.getElementById('inq-followup1').value = '';
-        document.getElementById('inq-followup2').value = '';
-        document.getElementById('inq-followup3').value = '';
-        this.setTodayDate();
-      },
-
-      resetOrderForm() {
-        document.getElementById('ord-travelDate').value = '';
-        document.getElementById('ord-product').value = '';
-        document.getElementById('ord-endDate').value = '';
-        document.getElementById('ord-customerInfo').value = '';
-        document.getElementById('ord-contact').value = '';
-        document.getElementById('ord-people').value = '';
-        document.getElementById('ord-roomType').value = '';
-        document.getElementById('ord-totalPrice').value = '';
-        document.getElementById('ord-paymentMethod').value = '';
-        document.getElementById('ord-paymentStatus').value = '';
-        document.getElementById('ord-finalDate').value = '';
-        document.getElementById('ord-notes').value = '';
-        document.getElementById('ord-review').value = '';
-        this.setTodayDate();
-      },
-
-      filterInquiry(level) {
-        this.currentFilter.inquiries = level;
-        this.currentFilter.inquiryToday = false;
-        document.querySelectorAll('#section-inquiries .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === level && !this.currentFilter.inquiryToday));
-        this.renderInquiryList();
-      },
-
-      filterInquiryToday() {
-        this.currentFilter.inquiryToday = true;
-        document.querySelectorAll('#section-inquiries .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'today'));
-        this.renderInquiryList();
-      },
-
-      filterOrder(status) {
-        this.currentFilter.orders = status;
-        this.currentFilter.orderToday = false;
-        document.querySelectorAll('#section-orders .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === status && !this.currentFilter.orderToday));
-        this.renderOrderList();
-      },
-
-      filterOrderToday() {
-        this.currentFilter.orderToday = true;
-        document.querySelectorAll('#section-orders .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'today'));
-        this.renderOrderList();
-      },
-
-      viewTodayInquiries() {
-        this.showSection('inquiries');
-        this.filterInquiryToday();
-      },
-
-      viewTodayOrders() {
-        this.showSection('orders');
-        this.filterOrderToday();
-      },
-
-      renderInquiryList() {
-        const search = document.getElementById('inq-search').value.toLowerCase();
-        const filter = this.currentFilter.inquiries;
-        let list = this.data.inquiries.filter(i => {
-          if (filter !== 'all' && i.intentionLevel !== filter) return false;
-          const text = `${i.wechatName} ${i.plannedTravelDate} ${i.interestedPackage} ${i.status} ${i.followUp1}`.toLowerCase();
-          return text.includes(search);
-        });
-        const container = document.getElementById('inquiry-list');
-        if (list.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div>没有找到咨询记录</div>';
-          return;
-        }
-        container.innerHTML = list.map(i => {
-          const statusClass = i.intentionLevel === '高' ? 'status-high' : i.intentionLevel === '中' ? 'status-medium' : 'status-low';
-          return `
-            <div class="record-item" onclick="app.showInquiryDetail('${i.id}')">
-              <div class="record-header">
-                <div class="record-name">${this.escape(i.wechatName || '未命名')}</div>
-                <span class="record-status ${statusClass}">${i.intentionLevel}意向</span>
-              </div>
-              <div class="record-meta">
-                <span>📅 ${this.escape(i.firstInquiryDate || '')}</span>
-                <span>🗓️ ${this.escape(i.plannedTravelDate || '时间待定')}</span>
-              </div>
-              <div class="record-meta" style="margin-top:4px">
-                <span>📦 ${this.escape(i.interestedPackage || '无套餐')}</span>
-                <span>📌 ${this.escape(i.status || '无状态')}</span>
-              </div>
-            </div>
-          `;
-        }).join('');
-      },
-
-      renderOrderList() {
-        const search = document.getElementById('ord-search').value.toLowerCase();
-        const filter = this.currentFilter.orders;
-        let list = this.data.orders.filter(o => {
-          if (filter !== 'all' && o.orderStatus !== filter) return false;
-          const text = `${o.customerInfo} ${o.product} ${o.travelDate} ${o.orderStatus} ${o.contact}`.toLowerCase();
-          return text.includes(search);
-        });
-        const container = document.getElementById('order-list');
-        if (list.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💰</div>没有找到成单记录</div>';
-          return;
-        }
-        container.innerHTML = list.map(o => {
-          const statusClass = o.orderStatus === '已完成' ? 'status-done' : 'status-unfinished';
-          return `
-            <div class="record-item" onclick="app.showOrderDetail('${o.id}')">
-              <div class="record-header">
-                <div class="record-name">${this.escape(o.customerInfo || '未命名')}</div>
-                <span class="record-status ${statusClass}">${o.orderStatus}</span>
-              </div>
-              <div class="record-meta">
-                <span>📅 ${this.escape(o.travelDate || '时间待定')}</span>
-                <span>📦 ${this.escape(o.product || '无产品')}</span>
-              </div>
-              <div class="record-meta" style="margin-top:4px">
-                <span>💵 ${o.totalPrice ? 'AUD ' + this.escape(o.totalPrice) : '未填价格'}</span>
-                <span>💳 ${this.escape(o.paymentStatus || '未付款')}</span>
-              </div>
-            </div>
-          `;
-        }).join('');
-      },
-
-      showInquiryDetail(id) {
-        const item = this.data.inquiries.find(i => i.id === id);
-        if (!item) return;
-        document.getElementById('modal-title').textContent = '咨询详情';
-        document.getElementById('modal-body').innerHTML = `
-          <div class="record-detail-row"><span class="record-detail-label">微信名</span><span class="record-detail-value">${this.escape(item.wechatName)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">首询日期</span><span class="record-detail-value">${this.escape(item.firstInquiryDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">计划出行</span><span class="record-detail-value">${this.escape(item.plannedTravelDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">天数</span><span class="record-detail-value">${this.escape(item.days)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">人数</span><span class="record-detail-value">${this.escape(item.people)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">意向套餐</span><span class="record-detail-value">${this.escape(item.interestedPackage)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">状态</span><span class="record-detail-value">${this.escape(item.status)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">意向程度</span><span class="record-detail-value">${this.escape(item.intentionLevel)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">跟进-1</span><span class="record-detail-value">${this.escape(item.followUp1)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">跟进-2</span><span class="record-detail-value">${this.escape(item.followUp2)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">跟进-3</span><span class="record-detail-value">${this.escape(item.followUp3)}</span></div>
-        `;
-        document.getElementById('modal-actions').innerHTML = `
-          <button class="btn btn-secondary" onclick="app.closeModal()">关闭</button>
-          <button class="btn btn-danger" onclick="app.deleteInquiry('${id}')">删除</button>
-        `;
-        document.getElementById('modal').classList.add('show');
-      },
-
-      showOrderDetail(id) {
-        const item = this.data.orders.find(o => o.id === id);
-        if (!item) return;
-        document.getElementById('modal-title').textContent = '成单详情';
-        document.getElementById('modal-body').innerHTML = `
-          <div class="record-detail-row"><span class="record-detail-label">序号</span><span class="record-detail-value">${item.seq}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">接单号</span><span class="record-detail-value">${this.escape(item.handler)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">订单状态</span><span class="record-detail-value">${this.escape(item.orderStatus)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">拉群日期</span><span class="record-detail-value">${this.escape(item.groupDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">出行日期</span><span class="record-detail-value">${this.escape(item.travelDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">产品</span><span class="record-detail-value">${this.escape(item.product)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">结束日期</span><span class="record-detail-value">${this.escape(item.endDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">客户信息</span><span class="record-detail-value">${this.escape(item.customerInfo)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">联系方式</span><span class="record-detail-value">${this.escape(item.contact)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">人数</span><span class="record-detail-value">${this.escape(item.people)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">房型</span><span class="record-detail-value">${this.escape(item.roomType)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">总价</span><span class="record-detail-value">AUD ${this.escape(item.totalPrice)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">付款方式</span><span class="record-detail-value">${this.escape(item.paymentMethod)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">付款状态</span><span class="record-detail-value">${this.escape(item.paymentStatus)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">尾款日期</span><span class="record-detail-value">${this.escape(item.finalDate)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">备注</span><span class="record-detail-value">${this.escape(item.notes)}</span></div>
-          <div class="record-detail-row"><span class="record-detail-label">评价</span><span class="record-detail-value">${this.escape(item.review)}</span></div>
-        `;
-        document.getElementById('modal-actions').innerHTML = `
-          <button class="btn btn-secondary" onclick="app.closeModal()">关闭</button>
-          <button class="btn btn-danger" onclick="app.deleteOrder('${id}')">删除</button>
-        `;
-        document.getElementById('modal').classList.add('show');
-      },
-
-      closeModal(e) {
-        if (e && e.target !== e.currentTarget) return;
-        document.getElementById('modal').classList.remove('show');
-      },
-
-      deleteInquiry(id) {
-        if (!confirm('确定删除这条咨询记录？')) return;
-        this.data.inquiries = this.data.inquiries.filter(i => i.id !== id);
-        this.saveData();
-        this.closeModal();
-        this.renderInquiryList();
-        this.renderHome();
-        this.showToast('已删除');
-      },
-
-      deleteOrder(id) {
-        if (!confirm('确定删除这条成单记录？')) return;
-        this.data.orders = this.data.orders.filter(o => o.id !== id);
-        this.saveData();
-        this.closeModal();
-        this.renderOrderList();
-        this.renderHome();
-        this.showToast('已删除');
-      },
-
-      showStats() {
-        this.showSection('home');
-      },
-
-      showSettings() {
-        document.getElementById('settings-modal').classList.add('show');
-      },
-
-      closeSettings(e) {
-        if (e && e.target !== e.currentTarget) return;
-        document.getElementById('settings-modal').classList.remove('show');
-      },
-
-      exportInquiries() {
-        this.loadData(); // 确保从 localStorage 读取最新数据
-        const headers = ['首询日期', '微信名', '计划出行日期', '天数', '人数', '意向套餐', '状态', '意向程度', '跟进-1', '跟进-2', '跟进-3'];
-        const rows = this.data.inquiries.map(i => [
-          i.firstInquiryDate, i.wechatName, i.plannedTravelDate, i.days, i.people,
-          i.interestedPackage, i.status, i.intentionLevel, i.followUp1, i.followUp2, i.followUp3
-        ]);
-        this.downloadCSV('咨询表_' + new Date().toISOString().split('T')[0] + '.csv', [headers, ...rows]);
-        this.showToast(`咨询表已导出，共 ${rows.length} 条`);
-      },
-
-      exportOrders() {
-        this.loadData(); // 确保从 localStorage 读取最新数据
-        const headers = ['序号', '接单号', '订单状态', '拉群日期', '出行日期（团期）', '产品', '结束日期', '客户信息', '联系方式', '人数', '房型', '总价（AUD）', '付款方式', '付款状态', '尾款日期', '备注', '评价'];
-        const rows = this.data.orders.map(o => [
-          o.seq, o.handler, o.orderStatus, o.groupDate, o.travelDate, o.product, o.endDate,
-          o.customerInfo, o.contact, o.people, o.roomType, o.totalPrice, o.paymentMethod,
-          o.paymentStatus, o.finalDate, o.notes, o.review
-        ]);
-        this.downloadCSV('成单表_' + new Date().toISOString().split('T')[0] + '.csv', [headers, ...rows]);
-        this.showToast(`成单表已导出，共 ${rows.length} 条`);
-      },
-
-      exportAll() {
-        const data = {
-          inquiries: this.data.inquiries,
-          orders: this.data.orders,
-          exportedAt: new Date().toISOString()
-        };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'jaycy_backup_' + new Date().toISOString().split('T')[0] + '.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        this.showToast('备份已下载');
-      },
-
-      downloadCSV(filename, rows) {
-        const csv = rows.map(row => row.map(cell => '"' + String(cell || '').replace(/"/g, '""') + '"').join(',')).join('\n');
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      },
-
-      clearAll() {
-        if (!confirm('⚠️ 确定清空所有数据？此操作不可恢复！')) return;
-        if (!confirm('再次确认：你真的要删除所有咨询和成单记录吗？')) return;
-        this.data.inquiries = [];
-        this.data.orders = [];
-        this.saveData();
-        this.renderAll();
-        this.showToast('数据已清空');
-      },
-
-      showToast(msg) {
-        const toast = document.getElementById('toast');
-        toast.textContent = msg;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2500);
-      },
-
-      escape(str) {
-        return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      },
-
-      checkUrlParams() {
-        const params = new URLSearchParams(window.location.search);
-        const action = params.get('action');
-        if (!action) return;
-
-        if (action === 'add-inquiry') {
-          const data = {
-            firstInquiryDate: params.get('date') || new Date().toISOString().split('T')[0],
-            wechatName: params.get('name') || '',
-            plannedTravelDate: params.get('travel') || '',
-            days: params.get('days') || '',
-            people: params.get('people') || '',
-            interestedPackage: params.get('package') || '',
-            status: params.get('status') || '',
-            intentionLevel: params.get('level') || '中',
-            followUp1: params.get('note') || '',
-            followUp2: '',
-            followUp3: ''
-          };
-          if (data.wechatName) {
-            this.data.inquiries.unshift(this.createInquiry(data));
-            this.saveData();
-            this.showToast('Siri 录入咨询成功');
-          }
-          this.showSection('home');
-        } else if (action === 'add-order') {
-          const data = {
-            handler: 'Jaycy',
-            orderStatus: params.get('status') || '未完成',
-            groupDate: params.get('date') || new Date().toISOString().split('T')[0].replace(/-/g, '/'),
-            travelDate: params.get('travel') || '',
-            product: params.get('product') || '',
-            endDate: '',
-            customerInfo: params.get('name') || '',
-            contact: '',
-            people: params.get('people') || '',
-            roomType: '',
-            totalPrice: params.get('price') || '',
-            paymentMethod: '',
-            paymentStatus: '',
-            finalDate: '',
-            notes: params.get('note') || '',
-            review: ''
-          };
-          if (data.customerInfo) {
-            this.data.orders.unshift(this.createOrder(data));
-            this.saveData();
-            this.showToast('Siri 录入成单成功');
-          }
-          this.showSection('home');
-        }
-      },
-
-      // 智能粘贴相关
-      pasteMode: 'inquiry',
-      parsedPasteData: null,
-      recognition: null,
-
-      renderPaste() {
-        document.getElementById('paste-text').value = '';
-        document.getElementById('paste-result').classList.add('hidden');
-        this.parsedPasteData = null;
-      },
-
-      switchPasteMode(type) {
-        this.pasteMode = type;
-        document.getElementById('paste-tab-inquiry').classList.toggle('active', type === 'inquiry');
-        document.getElementById('paste-tab-order').classList.toggle('active', type === 'order');
-        document.getElementById('paste-title').textContent = type === 'inquiry' ? '📋 粘贴聊天记录，自动识别咨询字段' : '💰 粘贴聊天记录，自动识别成单字段';
-        document.getElementById('paste-text').placeholder = type === 'inquiry'
-          ? '例如：客户问我6月20号到23号想去西澳，4个人，想看粉湖和波浪岩，预算大概3000澳币左右，想要轻奢团...'
-          : '例如：客户张三已定7月4日粉湖超值两日游，2人，大床房，总价738澳币，已付定金369澳币，尾款6月28前付...';
-        document.getElementById('paste-result').classList.add('hidden');
-        this.parsedPasteData = null;
-      },
-
-      parsePaste() {
-        const text = document.getElementById('paste-text').value.trim();
-        if (!text) {
-          this.showToast('请先粘贴文字');
-          return;
-        }
-
-        this.parsedPasteData = this.pasteMode === 'inquiry'
-          ? this.extractInquiryFields(text)
-          : this.extractOrderFields(text);
-
-        this.renderPasteResult();
-      },
-
-      extractInquiryFields(text) {
-        const today = new Date().toISOString().split('T')[0];
-        const result = {
-          firstInquiryDate: today,
-          wechatName: '',
-          plannedTravelDate: '',
-          days: '',
-          people: '',
-          interestedPackage: '',
-          status: '',
-          intentionLevel: '中',
-          followUp1: text,
-          followUp2: '',
-          followUp3: ''
-        };
-
-        // 提取微信名：支持更多格式
-        const namePatterns = [
-          /(?:客户|姓名|名字|昵称|微信名)[:：]\s*([^，。\s\d]{1,20})(?=[,，。\s])/,
-          /([^，。\s]{2,15})\s*(?:加微信|加我|问我|咨询|想|要|说)/,
-          /(?:客户|微信名|昵称)\s*[:：]?\s*([^，。\s]{1,20})/,
-          /^\s*([^，。\s]{2,15})\s*[:：]/
-        ];
-        for (const p of namePatterns) {
-          const m = text.match(p);
-          if (m && m[1] && m[1].length >= 2 && !/^(客户|咨询|想|要|说|微信|昵称|姓名|名字)/.test(m[1])) {
-            result.wechatName = m[1].trim();
-            break;
-          }
-        }
-
-        // 提取日期范围（先匹配范围，避免被单日期覆盖）
-        // 中文格式：6月23-26、6月23号到26号
-        const chineseRangeMatch = text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?\s*[-~～]\s*(\d{1,2})(?:日|号)?/);
-        if (chineseRangeMatch) {
-          result.plannedTravelDate = chineseRangeMatch[1] + '.' + chineseRangeMatch[2] + '-' + chineseRangeMatch[3];
-        }
-
-        // 数字格式：6.23-26、7.1-7.10
-        if (!result.plannedTravelDate) {
-          const rangeMatch = text.match(/(\d{1,2}[\.\-/]\d{1,2})\s*[-~～]\s*(\d{1,2}[\.\-/]?\d{0,2})/);
-          if (rangeMatch) {
-            result.plannedTravelDate = rangeMatch[1] + '-' + rangeMatch[2];
-          }
-        }
-
-        // 提取单日期
-        if (!result.plannedTravelDate) {
-          const datePatterns = [
-            /(\d{4}[\.\-/]\d{1,2}[\.\-/]\d{1,2})/,
-            /(\d{1,2}[\.\-/]\d{1,2}(?:[\.\-/]\d{1,2})?)/,
-            /(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)?/,
-            /(\d{1,2}\s*月\s*\d{1,2}\s*日?)/,
-            /(六七月|七八月|年底|明年|暑假|寒假|国庆|春节)/
-          ];
-          for (const p of datePatterns) {
-            const m = text.match(p);
-            if (m && m[1]) {
-              if (m[2]) {
-                result.plannedTravelDate = m[1].trim() + '.' + m[2].trim();
-              } else {
-                result.plannedTravelDate = m[1].trim();
-              }
-              break;
-            }
-          }
-        }
-
-        // 提取天数
-        const daysMatch = text.match(/(\d+)\s*(?:个)?\s*天/) || text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个)?\s*天/);
-        if (daysMatch) {
-          result.days = this.cnNumberToDigit(daysMatch[1]);
-        }
-
-        // 提取人数
-        result.people = this.extractPeople(text);
-
-        // 提取套餐
-        result.interestedPackage = this.extractPackages(text).join(' ');
-
-        // 状态推断
-        if (text.includes('还没定') || text.includes('再考虑') || text.includes('考虑一下') || text.includes('再看看') || text.includes('只是问问')) {
-          result.status = '再考虑';
-        } else if (text.includes('无回复') || text.includes('没回复') || text.includes('不回') || text.includes('不回复')) {
-          result.status = '无回复';
-        } else if (text.includes('确定了') || text.includes('要订') || text.includes('要定') || text.includes('想订') || text.includes('意向')) {
-          result.status = '确定意向';
-        }
-
-        // 意向程度
-        if (text.includes('意向很高') || text.includes('本周付款') || text.includes('确定了') || text.includes('已定') || text.includes('付定金') || text.includes('要订') || text.includes('想订')) {
-          result.intentionLevel = '高';
-        } else if (text.includes('只是咨询') || text.includes('暂时不需要') || text.includes('无回复') || text.includes('没回复') || text.includes('再看看') || text.includes('再考虑')) {
-          result.intentionLevel = '低';
-        }
-
-        return result;
-      },
-
-      // 智能粘贴辅助函数
-      cnNumberToDigit(str) {
-        const map = { '一': '1', '两': '2', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' };
-        return map[str] || str;
-      },
-
-      extractPeople(text) {
-        // 数字：3个人、3人、三口人、一家三口
-        const numMatch = text.match(/(\d+)\s*(?:个)?\s*口?\s*人/);
-        if (numMatch) return numMatch[1];
-
-        // 中文：两个人、一家三口、两位
-        const cnMatch = text.match(/(两|三|四|五|六|七|八|九|十)\s*(?:个|位|口)?\s*(?:人|口|个人)?/);
-        if (cnMatch) return this.cnNumberToDigit(cnMatch[1]);
-
-        // 一位/两位客人
-        const guestMatch = text.match(/(一|两|二|三|四|五|六|七|八|九|十)\s*(?:位|个)\s*客/);
-        if (guestMatch) return this.cnNumberToDigit(guestMatch[1]);
-
-        return '';
-      },
-
-      extractPackages(text) {
-        const packageKeywords = [
-          '粉湖超值两日游', '粉湖轻奢两日游', '粉湖超值2日游', '粉湖轻奢2日游',
-          '粉湖两日游', '粉湖三日游', '粉湖一日游', '粉湖2日游', '粉湖3日游', '粉湖1日游',
-          '粉湖超值', '粉湖轻奢', '粉湖', '波浪岩', '玛格丽特河', '罗岛', '罗特尼斯岛',
-          '全景七日', '全景七日游', '明星六日', '明星六日游', '浪漫五日', '浪漫五日游',
-          '纯玩三日', '纯玩三日游', '纯玩四日', '纯玩四日游',
-          '轻松四日', '轻松四日游', '纯玩三日A', '纯玩三日B', '纯玩四日A', '纯玩四日B',
-          '一日游', '两日游', '二日游', '三日游', '四日游', '五日游', '六日游', '七日游',
-          '1日游', '2日游', '3日游', '4日游', '5日游', '6日游', '7日游'
-        ];
-        const foundPackages = [];
-        for (const kw of packageKeywords) {
-          if (text.includes(kw)) {
-            const isContained = foundPackages.some(existing => existing.includes(kw) || kw.includes(existing));
-            if (!isContained) foundPackages.push(kw);
-          }
-        }
-        return foundPackages;
-      },
-
-      extractCustomerInfo(text) {
-        const patterns = [
-          /(?:客户|姓名|名字)[:：]?\s*([^，。\s\d]{1,20})(?=[,，。\s])/,
-          /(?:客户|姓名|名字)\s*[:：]?\s*([^，。\s]{1,20})/,
-          /([^，。\s]{2,15})\s*(?:先生|女士|小姐)/,
-          /^\s*([^，。\s]{2,15})\s*[:：]/
-        ];
-        for (const p of patterns) {
-          const m = text.match(p);
-          if (m && m[1] && m[1].length >= 2 && !/^(客户|姓名|名字|电话|联系方式|微信)/.test(m[1])) {
-            return m[1].trim();
-          }
-        }
-        return '';
-      },
-
-      extractContact(text) {
-        // ��先匹配中国大陆手机号
-        const cnPhone = text.match(/(?:\+?86[-\s]?)?1[3-9]\d{9}/);
-        if (cnPhone) return cnPhone[0].trim();
-
-        // 澳大利亚手机号（以04开头，10位）或固话
-        const auPhone = text.match(/0\d{9}/);
-        if (auPhone) return auPhone[0].trim();
-
-        // 马来西亚等以6开头的号码
-        const otherPhone = text.match(/6\d{8,11}/);
-        if (otherPhone) return otherPhone[0].trim();
-
-        return '';
-      },
-
-      extractPrice(text) {
-        // 优先匹配带货币符号的价格
-        let match = text.match(/(?:总价|价格|报价|金额)?\s*(\d{3,5})(?![\d\.])\s*(?:AUD|澳币|澳大利亚元|刀|人民币|元|块|￥|¥|rmb)/i);
-        if (match) return match[1];
-
-        // 匹配货币符号在前
-        match = text.match(/(?:AUD|澳币|￥|¥)\s*(\d{3,5})(?![\d\.])/i);
-        if (match) return match[1];
-
-        // 匹配"X澳币/元/人民币"但不匹配手机号
-        match = text.match(/(?:^|\D)(\d{3,5})(?![\d\.])\s*(?:澳币|澳大利亚元|人民币|元|块|刀)/i);
-        if (match) return match[1];
-
-        return '';
-      },
-
-      extractOrderFields(text) {
-        const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-        const result = {
-          seq: this.data.orders.length + 1,
-          handler: 'Jaycy',
-          orderStatus: text.includes('已完成') || text.includes('已结束') || text.includes('已出行') ? '已完成' : '未完成',
-          groupDate: today,
-          travelDate: '',
-          product: '',
-          endDate: '',
-          customerInfo: '',
-          contact: '',
-          people: '',
-          roomType: '',
-          totalPrice: '',
-          paymentMethod: '',
-          paymentStatus: '',
-          finalDate: '',
-          notes: text,
-          review: ''
-        };
-
-        // 提取客户信息
-        result.customerInfo = this.extractCustomerInfo(text);
-
-        // 提取联系方式
-        result.contact = this.extractContact(text);
-
-        // 提取日期范围（先匹配范围）
-        // 中文格式：6月23-26、6月23号到26号
-        const chineseRangeMatch = text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?\s*[-~～]\s*(\d{1,2})(?:日|号)?/);
-        if (chineseRangeMatch) result.travelDate = chineseRangeMatch[1] + '.' + chineseRangeMatch[2] + '-' + chineseRangeMatch[3];
-
-        // 数字格式：6.23-26、7.1-7.10
-        if (!result.travelDate) {
-          const rangeMatch = text.match(/(\d{1,2}[\.\-/]\d{1,2})\s*[-~～]\s*(\d{1,2}[\.\-/]?\d{0,2})/);
-          if (rangeMatch) result.travelDate = rangeMatch[1] + '-' + rangeMatch[2];
-        }
-
-        // 提取单日期
-        if (!result.travelDate) {
-          const dateMatch = text.match(/(\d{4}[\.\-/]\d{1,2}[\.\-/]\d{1,2})/) ||
-                            text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)?/) ||
-                            text.match(/(\d{1,2}[\.\-/]\d{1,2})/);
-          if (dateMatch) {
-            if (dateMatch[2]) {
-              result.travelDate = dateMatch[1].trim() + '.' + dateMatch[2].trim();
-            } else {
-              result.travelDate = dateMatch[1].trim();
-            }
-          }
-        }
-
-        // 提取产品
-        result.product = this.extractPackages(text).join(' ');
-
-        // 提取人数
-        result.people = this.extractPeople(text);
-
-        // 提取房型
-        const roomMatch = text.match(/(大床房|双床房|单人间|三人房|家庭房|拼房|大床|双床|标间|标准间|单房)/);
-        if (roomMatch) result.roomType = roomMatch[1].replace(/大床$/, '大床房').replace(/双床$/, '双床房').replace(/单房$/, '单人间');
-
-        // 提取价格
-        result.totalPrice = this.extractPrice(text);
-
-        // 付款方式
-        if (text.includes('微信')) result.paymentMethod = '微信转账';
-        else if (text.includes('支付宝')) result.paymentMethod = '支付宝转账';
-        else if (text.includes('银行') || text.includes('转账')) result.paymentMethod = '银行转账';
-        else if (text.includes('澳币')) result.paymentMethod = '澳币转账';
-        else if (text.includes('现金')) result.paymentMethod = '现金';
-        else if (text.includes('携程')) result.paymentMethod = '携程下单';
-        else if (text.includes('信用卡') || text.includes('刷卡')) result.paymentMethod = '信用卡';
-
-        // 付款状态
-        if (text.includes('已付全款') || text.includes('全款支付') || text.includes('已支付全款') || text.includes('全部付清')) result.paymentStatus = '全款支付';
-        else if (text.includes('已付定金') || text.includes('付了定金') || text.includes('支付定金')) result.paymentStatus = '已付定金';
-        else if (text.includes('尾款')) result.paymentStatus = '待付尾款';
-        else if (text.includes('结清')) result.paymentStatus = '结清';
-        else if (text.includes('已付') || text.includes('已支付')) result.paymentStatus = '已付款';
-        else if (text.includes('未付') || text.includes('未支付')) result.paymentStatus = '未付款';
-
-        // 尾款日期
-        const finalDateMatch = text.match(/(?:尾款|余款)\s*(?:日期|时间)?\s*[:：]?\s*(\d{1,2}[\.\-/]\d{1,2})/) ||
-                               text.match(/(?:尾款|余款)\s*(?:于|在)?\s*(\d{1,2}[\.\-/]\d{1,2})/);
-        if (finalDateMatch) result.finalDate = finalDateMatch[1];
-
-        return result;
-      },
-
-      renderPasteResult() {
-        const data = this.parsedPasteData;
-        if (!data) return;
-        const container = document.getElementById('paste-fields');
-        const fields = [];
-        if (this.pasteMode === 'inquiry') {
-          fields.push({ label: '微信名', key: 'wechatName', value: data.wechatName });
-          fields.push({ label: '计划出行日期', key: 'plannedTravelDate', value: data.plannedTravelDate });
-          fields.push({ label: '天数', key: 'days', value: data.days });
-          fields.push({ label: '人数', key: 'people', value: data.people });
-          fields.push({ label: '意向套餐', key: 'interestedPackage', value: data.interestedPackage });
-          fields.push({ label: '意向程度', key: 'intentionLevel', value: data.intentionLevel });
-          fields.push({ label: '状态', key: 'status', value: data.status });
-          fields.push({ label: '跟进记录', key: 'followUp1', value: data.followUp1 });
-        } else {
-          fields.push({ label: '客户信息', key: 'customerInfo', value: data.customerInfo });
-          fields.push({ label: '联系方式', key: 'contact', value: data.contact });
-          fields.push({ label: '出行日期', key: 'travelDate', value: data.travelDate });
-          fields.push({ label: '产品', key: 'product', value: data.product });
-          fields.push({ label: '人数', key: 'people', value: data.people });
-          fields.push({ label: '房型', key: 'roomType', value: data.roomType });
-          fields.push({ label: '总价（AUD）', key: 'totalPrice', value: data.totalPrice });
-          fields.push({ label: '付款方式', key: 'paymentMethod', value: data.paymentMethod });
-          fields.push({ label: '付款状态', key: 'paymentStatus', value: data.paymentStatus });
-          fields.push({ label: '尾款日期', key: 'finalDate', value: data.finalDate });
-          fields.push({ label: '备注', key: 'notes', value: data.notes });
-        }
-
-        container.innerHTML = fields.map(f => `
-          <div class="parse-item">
-            <span class="parse-label">${f.label}</span>
-            <input class="parse-value" value="${this.escape(f.value)}" data-key="${f.key}" style="background:transparent;border:none;text-align:right;font-size:14px;padding:0;min-width:120px" />
-          </div>
-        `).join('');
-
-        document.getElementById('paste-result').classList.remove('hidden');
-      },
-
-      savePaste() {
-        if (!this.parsedPasteData) return;
-        const inputs = document.querySelectorAll('#paste-fields input');
-        inputs.forEach(input => {
-          const key = input.dataset.key;
-          if (key && this.parsedPasteData.hasOwnProperty(key)) {
-            this.parsedPasteData[key] = input.value;
-          }
-        });
-
-        if (this.pasteMode === 'inquiry') {
-          if (!this.parsedPasteData.wechatName) {
-            this.showToast('请填写微信名');
-            return;
-          }
-          this.data.inquiries.unshift(this.createInquiry(this.parsedPasteData));
-          this.showToast('咨询已保存');
-        } else {
-          if (!this.parsedPasteData.customerInfo) {
-            this.showToast('请填写客户信息');
-            return;
-          }
-          this.data.orders.unshift(this.createOrder(this.parsedPasteData));
-          this.showToast('成单已保存');
-        }
-        this.saveData();
-        this.renderHome();
-        document.getElementById('paste-text').value = '';
-        document.getElementById('paste-result').classList.add('hidden');
-        this.parsedPasteData = null;
-        this.showSection('home');
-      },
-
-      // 语音输入
-      startVoice(fieldId) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          this.showToast('当前浏览器不支持语音输入，请使用 Safari');
-          return;
-        }
-
-        if (this.recognition && this.recognition.recording) {
-          this.stopVoice();
-          return;
-        }
-
-        const btn = document.activeElement;
-        this.recognition = new SpeechRecognition();
-        this.recognition.lang = 'zh-CN';
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true;
-
-        const el = document.getElementById(fieldId);
-        if (!el) return;
-
-        // 找到最近的语音按钮并添加 recording 类
-        const voiceBtn = el.closest('.input-with-voice')?.querySelector('.voice-btn') ||
-                         (fieldId === 'inq-followup1' ? document.getElementById('inq-voice-btn') : null) ||
-                         (fieldId === 'ord-notes' ? document.getElementById('ord-voice-btn') : null);
-        if (voiceBtn) voiceBtn.classList.add('recording');
-
-        this.recognition.recording = true;
-        this.recognition.onresult = (event) => {
-          let final = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              final += event.results[i][0].transcript;
-            }
-          }
-          if (final) {
-            el.value = (el.value ? el.value + ' ' : '') + final;
-          }
-        };
-
-        this.recognition.onerror = (event) => {
-          console.error('语音识别错误', event.error);
-          this.showToast('语音识别失败：' + event.error);
-          this.stopVoice();
-        };
-
-        this.recognition.onend = () => {
-          if (voiceBtn) voiceBtn.classList.remove('recording');
-          this.recognition = null;
-        };
-
-        this.recognition.start();
-        this.showToast('请说话，说完再次点击麦克风');
-      },
-
-      stopVoice() {
-        if (this.recognition) {
-          this.recognition.stop();
-          this.recognition.recording = false;
-        }
-      }
-    };
-
-    window.app = app;
-    app.init();
-  </script>
-</body>
-</html>
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f8fafc;color:#1e293b;height:100%}#app{height:100%;display:flex;flex-direction:column;max-width:480px;margin:0 auto}header{background:#0d9488;color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;flex-shrink:0}header h1{font-size:17px;margin:0;font-weight:600;flex:1;text-align:center}#main{flex:1;overflow-y:auto;padding:12px 12px calc(80px + env(safe-area-inset-bottom))}nav{border-top:1px solid #e2e8f0;display:flex;background:#fff;padding:8px 0 calc(8px+env(safe-area-inset-bottom));position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:10}.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:#94a3b8;font-size:11px;cursor:pointer}.nav-item.active{color:#0d9488}.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:12px}.card-title{font-size:15px;font-weight:600;margin:0 0 12px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.st{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);text-align:center;cursor:pointer}.st:active{transform:scale(.98)}.sv{font-size:26px;font-weight:700;color:#0d9488}.sl{font-size:12px;color:#64748b;margin-top:4px}.qa{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}.qb{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;font-size:13px;font-weight:500}.qb:active{background:#ccfbf1}.rl{display:flex;flex-direction:column;gap:8px}.ri{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.1);cursor:pointer}.ri:active{transform:scale(.99)}.rr{display:flex;justify-content:space-between;align-items:flex-start}.rn{font-weight:600;font-size:14px;flex:1}.rb{font-size:11px;padding:3px 8px;border-radius:12px;font-weight:500;white-space:nowrap;margin-left:8px}.bh{background:#dcfce7;color:#166534}.bm{background:#fef3c7;color:#92400e}.bl{background:#fee2e2;color:#991b1b}.bd{background:#dbeafe;color:#1e40af}.bo{background:#f3e8ff;color:#7c3aed}.rm{font-size:12px;color:#64748b;margin-top:4px;line-height:1.5}.cg{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}.ch{padding:6px 12px;border-radius:16px;border:1px solid #e2e8f0;font-size:13px;cursor:pointer;background:#fff}.ch.on{background:#0d9488;color:#fff;border-color:#0d9488}.sb{margin-bottom:10px}.sb input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;background:#f8fafc}.ed{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9}.el{font-size:13px;color:#64748b;min-width:72px;padding-top:8px}.ei{flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px}.es{flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;background:#fff}.et{flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;min-height:50px;resize:vertical}.btn{width:100%;padding:12px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer}.btn:active{opacity:.9}.bp{background:#0d9488;color:#fff}.bs{background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0}.bdg{background:#ef4444;color:#fff}.btnsm{width:auto;padding:8px 16px;font-size:13px;border-radius:8px}.pa{min-height:130px;font-size:15px;line-height:1.6;width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;resize:vertical}.pr{background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid #bbf7d0}.pi{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #bbf7d0;font-size:14px}.pi:last-child{border-bottom:none}.pl{color:#166534;font-weight:500}.pv{text-align:right;max-width:60%;word-break:break-all}.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;justify-content:center}.ov.on{display:flex}.ob{background:#fff;width:100%;max-width:480px;max-height:85vh;border-radius:20px 20px 0 0;padding:20px;overflow-y:auto}.tst{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200}.tst.on{opacity:1}.em{text-align:center;padding:40px 20px;color:#94a3b8;font-size:14px}.mt{margin-top:8px}.ga{display:flex;gap:8px}</style></head><body>
+<div id="app"><header><h1 id="ht">Jaycy CRM</h1></header>
+<div id="main"></div>
+<nav>
+<div class="nav-item active" onclick="A.tab('home')"><span>H</span><span>首页</span></div>
+<div class="nav-item" onclick="A.tab('inquiries')"><span>I</span><span>咨询</span></div>
+<div class="nav-item" onclick="A.tab('orders')"><span>O</span><span>成单</span></div>
+<div class="nav-item" onclick="A.tab('paste')"><span>P</span><span>粘贴</span></div>
+</nav></div>
+<div id="ov" class="ov" onclick="A.cl()"><div class="ob" onclick="event.stopPropagation()"><div id="ob"></div></div></div>
+<div id="tst" class="tst"></div>
+<script>
+const D=JSON.parse(atob('eyJpIjogW3siaWQiOiAiaXExIiwgImZpcnN0SW5xdWlyeURhdGUiOiAiMjAyNi0wNS0zMSIsICJ3ZWNoYXROYW1lIjogIk1ha28iLCAicGxhbm5lZFRyYXZlbERhdGUiOiAiLyIsICJkYXlzIjogIi8iLCAicGVvcGxlIjogIuaaguS4jeehruWumiIsICJpbnRlcmVzdGVkUGFja2FnZSI6ICIvIiwgInN0YXR1cyI6ICLml6Dlm57lpI0iLCAiaW50ZW50aW9uTGV2ZWwiOiAi5L2OIiwgImZvbGxvd1VwMSI6ICI1LjMx5Y+R5Zub5p2h6Lev57q/5peg5Zue5aSNIiwgImZvbGxvd1VwMiI6ICI2LjLlj5Hnibnku7fku4vnu43ml6Dlm57lpI0iLCAiZm9sbG93VXAzIjogIiJ9XSwgIm8iOiBbeyJpZCI6ICJvZDEiLCAic2VxIjogMSwgImhhbmRsZXIiOiAiSmF5Y3kiLCAib3JkZXJTdGF0dXMiOiAi5bey5a6M5oiQIiwgImdyb3VwRGF0ZSI6ICIyMDI2LzUvMTIiLCAidHJhdmVsRGF0ZSI6ICIyMDI2LjUuMjIrNS4yMyIsICJwcm9kdWN0IjogIuazoua1quWyqTHml6XmuLgr57KJ5rmW6LaF5YC8MuaXpea4uCIsICJlbmREYXRlIjogIjUuMjTmmZoiLCAiY3VzdG9tZXJJbmZvIjogIkhhb3RpYW4gWmhlbmciLCAiY29udGFjdCI6ICIxMzYyNDA0MDMyMyIsICJwZW9wbGUiOiAiMSIsICJyb29tVHlwZSI6ICLljZXkurrpl7QiLCAidG90YWxQcmljZSI6ICI2ODQiLCAicGF5bWVudE1ldGhvZCI6ICLlvq7kv6HovazotKYiLCAicGF5bWVudFN0YXR1cyI6ICLnu5PmuIUiLCAiZmluYWxEYXRlIjogIjUuMjIiLCAibm90ZXMiOiAiIiwgInJldmlldyI6ICLmnKrlm57lpI0ifV19'));
+
+const A={
+  _i:null,_o:null,_t:'home',_f:'all',
+  get i(){if(!this._i){try{let v=JSON.parse(localStorage.getItem('jc_i'));this._i=v&&v.length?v:[...D.i]}catch(e){this._i=[...D.i]}}return this._i},
+  set i(v){this._i=v;localStorage.setItem('jc_i',JSON.stringify(v))},
+  get o(){if(!this._o){try{let v=JSON.parse(localStorage.getItem('jc_o'));this._o=v&&v.length?v:[...D.o]}catch(e){this._o=[...D.o]}}return this._o},
+  set o(v){this._o=v;localStorage.setItem('jc_o',JSON.stringify(v))},
+  es(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')},
+  tm(m){let t=document.getElementById('tst');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},2500)},
+  cl(){document.getElementById('ov').classList.remove('on')},
+  
+  tab(t){
+    this._t=t;this._f='all';
+    document.querySelectorAll('.nav-item').forEach(function(n,i){n.classList.toggle('active',(i==0&&t=='home')||(i==1&&t=='inquiries')||(i==2&&t=='orders')||(i==3&&t=='paste'))});
+    document.getElementById('ht').textContent={'home':'Jaycy CRM','inquiries':'咨询记录','orders':'成单记录','paste':'粘贴录入'}[t]||'Jaycy CRM';
+    if(t=='home')this.home();else if(t=='inquiries')this.inq();else if(t=='orders')this.ord();else if(t=='paste')this.ps();
+    document.getElementById('main').scrollTop=0;
+  },
+  
+  home(){
+    let td=(new Date()).toISOString().split('T')[0];
+    let it=this.i.filter(function(x){return x.firstInquiryDate===td}).length;
+    let ot=this.o.filter(function(x){return x.groupDate===td.replace(/-/g,'/')}).length;
+    let hi=this.i.filter(function(x){return x.intentionLevel=='高'}).slice(0,5);
+    let h='<div class="qa"><div class="qb" onclick="A.tab(\'paste\')">粘贴录入</div><div class="qb" onclick="A.addInq()">录咨询</div><div class="qb" onclick="A.addOrd()">录成单</div></div>';
+    h+='<div class="card"><div class="card-title">今日概览</div><div class="stats"><div class="st" onclick="A.tab(\'inquiries\')"><div class="sv">'+it+'</div><div class="sl">今日咨询</div></div><div class="st" onclick="A.tab(\'orders\')"><div class="sv">'+ot+'</div><div class="sl">今日成单</div></div><div class="st" onclick="A.tab(\'inquiries\')"><div class="sv">'+this.i.length+'</div><div class="sl">总咨询</div></div><div class="st" onclick="A.tab(\'orders\')"><div class="sv">'+this.o.length+'</div><div class="sl">总成单</div></div></div></div>';
+    h+='<div class="card"><div class="card-title">高意向客户</div>';
+    if(hi.length==0)h+='<div class="em">暂无</div>';
+    else{for(let x of hi)h+='<div class="ri" onclick="A.showInq(\''+x.id+'\')"><div class="rr"><div class="rn">'+this.es(x.wechatName)+'</div><span class="rb bh">高意向</span></div><div class="rm">'+this.es(x.plannedTravelDate)+' | '+this.es(x.interestedPackage||'无')+'</div></div>';}
+    h+='</div><div class="mt"><button class="btn bs" onclick="A.set()">导出/备份</button></div>';
+    document.getElementById('main').innerHTML=h;
+  },
+  
+  addInq(){let d={firstInquiryDate:(new Date()).toISOString().split('T')[0],wechatName:'',plannedTravelDate:'',days:'',people:'',interestedPackage:'',status:'',intentionLevel:'中',followUp1:'',followUp2:'',followUp3:''};this.editInq(d,null,true)},
+  addOrd(){let d={seq:this.o.length+1,handler:'Jaycy',orderStatus:'未完成',groupDate:(new Date()).toISOString().split('T')[0].replace(/-/g,'/'),travelDate:'',product:'',endDate:'',customerInfo:'',contact:'',people:'',roomType:'',totalPrice:'',paymentMethod:'',paymentStatus:'',finalDate:'',notes:'',review:''};this.editOrd(d,null,true)},
+  
+  showInq(id){let x=this.i.find(function(a){return a.id===id});if(!x)return;let h='<div style="display:flex;justify-content:space-between;margin-bottom:16px"><b>咨询详情</b><span class="ov-close" onclick="A.cl()">&times;</span></div>';
+    h+='<div class="ed"><span class="el">微信名</span><span>'+this.es(x.wechatName)+'</span></div>';
+    h+='<div class="ed"><span class="el">首询日期</span><span>'+this.es(x.firstInquiryDate)+'</span></div>';
+    h+='<div class="ed"><span class="el">出行日期</span><span>'+this.es(x.plannedTravelDate)+'</span></div>';
+    h+='<div class="ed"><span class="el">人数</span><span>'+this.es(x.people)+'</span></div>';
+    h+='<div class="ed"><span class="el">套餐</span><span>'+this.es(x.interestedPackage)+'</span></div>';
+    h+='<div class="ed"><span class="el">状态</span><span>'+this.es(x.status)+'</span></div>';
+    h+='<div class="ed"><span class="el">意向</span><span class="rb '+(x.intentionLevel=='高'?'bh':x.intentionLevel=='中'?'bm':'bl')+'">'+x.intentionLevel+'</span></div>';
+    h+='<div class="ed"><span class="el">跟进1</span><span>'+this.es(x.followUp1||'-')+'</span></div>';
+    h+='<div class="ed"><span class="el">跟进2</span><span>'+this.es(x.followUp2||'-')+'</span></div>';
+    h+='<div class="ed"><span class="el">跟进3</span><span>'+this.es(x.followUp3||'-')+'</span></div>';
+    h+='<div class="ga mt"><button class="btn bp" onclick="A.editInq(A.i.find(function(a){return a.id===\''+x.id+'\'}),\''+x.id+'\')">编辑</button><button class="btn bdg" onclick="A.delInq(\''+x.id+'\')">删除</button></div>';
+    document.getElementById('ob').innerHTML=h;document.getElementById('ov').classList.add('on');
+  },
+  
+  showOrd(id){let x=this.o.find(function(a){return a.id===id});if(!x)return;let h='<div style="display:flex;justify-content:space-between;margin-bottom:16px"><b>成单详情</b><span class="ov-close" onclick="A.cl()">&times;</span></div>';
+    ['seq','customerInfo','contact','travelDate','product','people','totalPrice','roomType','paymentMethod','paymentStatus','groupDate','finalDate','endDate','orderStatus','handler','notes','review'].forEach(function(k){
+      let v=x[k]||'-';if(k=='totalPrice'&&v!='-')v='AUD '+v;
+      h+='<div class="ed"><span class="el">'+k+'</span><span>'+A.es(v)+'</span></div>';
+    });
+    h+='<div class="ga mt"><button class="btn bp" onclick="A.editOrd(A.o.find(function(a){return a.id===\''+x.id+'\'}),\''+x.id+'\')">编辑</button><button class="btn bdg" onclick="A.delOrd(\''+x.id+'\')">删除</button></div>';
+    document.getElementById('ob').innerHTML=h;document.getElementById('ov').classList.add('on');
+  },
+  
+  editInq(d,id,isNew){
+    if(!isNew)id=id||d.id;
+    let h='<div style="display:flex;justify-content:space-between;margin-bottom:16px"><b>'+(isNew?'新增咨询':'编辑咨询')+'</b><span class="ov-close" onclick="A.cl()">&times;</span></div>';
+    h+='<div class="ed"><span class="el">微信名</span><input class="ei" id="_wechatName" value="'+this.es(d.wechatName)+'"></div>';
+    h+='<div class="ed"><span class="el">首询日期</span><input class="ei" id="_firstInquiryDate" value="'+this.es(d.firstInquiryDate)+'" type="date"></div>';
+    h+='<div class="ed"><span class="el">出行日期</span><input class="ei" id="_plannedTravelDate" value="'+this.es(d.plannedTravelDate)+'"></div>';
+    h+='<div class="ed"><span class="el">天数</span><input class="ei" id="_days" value="'+this.es(d.days)+'"></div>';
+    h+='<div class="ed"><span class="el">人数</span><input class="ei" id="_people" value="'+this.es(d.people)+'"></div>';
+    h+='<div class="ed"><span class="el">套餐</span><input class="ei" id="_interestedPackage" value="'+this.es(d.interestedPackage)+'"></div>';
+    h+='<div class="ed"><span class="el">状态</span><input class="ei" id="_status" value="'+this.es(d.status)+'"></div>';
+    h+='<div class="ed"><span class="el">意向</span><select class="es" id="_intentionLevel"><option value="高"'+(d.intentionLevel=='高'?' selected':'')+'>高</option><option value="中"'+(d.intentionLevel=='中'?' selected':'')+'>中</option><option value="低"'+(d.intentionLevel=='低'?' selected':'')+'>低</option></select></div>';
+    h+='<div class="ed"><span class="el">跟进1</span><textarea class="et" id="_followUp1">'+this.es(d.followUp1)+'</textarea></div>';
+    h+='<div class="ed"><span class="el">跟进2</span><textarea class="et" id="_followUp2">'+this.es(d.followUp2)+'</textarea></div>';
+    h+='<div class="ed"><span class="el">跟进3</span><textarea class="et" id="_followUp3">'+this.es(d.followUp3)+'</textarea></div>';
+    h+='<div class="ga mt"><button class="btn bp" onclick="A.saveInq(\''+id+'\','+isNew+')">保存</button></div>';
+    document.getElementById('ob').innerHTML=h;document.getElementById('ov').classList.add('on');
+  },
+  
+  saveInq(id,isNew){
+    let d={id:id||'inq_'+Date.now(),firstInquiryDate:document.getElementById('_firstInquiryDate').value,wechatName:document.getElementById('_wechatName').value,plannedTravelDate:document.getElementById('_plannedTravelDate').value,days:document.getElementById('_days').value,people:document.getElementById('_people').value,interestedPackage:document.getElementById('_interestedPackage').value,status:document.getElementById('_status').value,intentionLevel:document.getElementById('_intentionLevel').value,followUp1:document.getElementById('_followUp1').value,followUp2:document.getElementById('_followUp2').value,followUp3:document.getElementById('_followUp3').value};
+    if(!d.wechatName){this.tm('请填微信名');return}
+    let idx=this.i.findIndex(function(a){return a.id===id});
+    if(idx>=0)this.i[idx]=d;else this.i.unshift(d);
+    this.saveI();this.cl();this.tab(this._t);this.tm('已保存');
+  },
+  
+  saveI(){let v=this._i;this.i=v;if(this._t=='inquiries')this.inq();if(this._t=='home')this.home()},
+  
+  delInq(id){if(!confirm('删除?'))return;this.i=this.i.filter(function(a){return a.id!==id});this.saveI();this.cl();this.tab(this._t);this.tm('已删除')},
+  
+  editOrd(d,id,isNew){
+    if(!isNew)id=id||d.id;
+    let h='<div style="display:flex;justify-content:space-between;margin-bottom:16px"><b>'+(isNew?'新增成单':'编辑成单')+'</b><span class="ov-close" onclick="A.cl()">&times;</span></div>';
+    h+='<div class="ed"><span class="el">客户</span><input class="ei" id="_customerInfo" value="'+this.es(d.customerInfo)+'"></div>';
+    h+='<div class="ed"><span class="el">电话</span><input class="ei" id="_contact" value="'+this.es(d.contact)+'"></div>';
+    h+='<div class="ed"><span class="el">出行日期</span><input class="ei" id="_travelDate" value="'+this.es(d.travelDate)+'"></div>';
+    h+='<div class="ed"><span class="el">产品</span><input class="ei" id="_product" value="'+this.es(d.product)+'"></div>';
+    h+='<div class="ed"><span class="el">人数</span><input class="ei" id="_people" value="'+this.es(d.people)+'"></div>';
+    h+='<div class="ed"><span class="el">总价AUD</span><input class="ei" id="_totalPrice" value="'+this.es(d.totalPrice)+'"></div>';
+    h+='<div class="ed"><span class="el">房型</span><input class="ei" id="_roomType" value="'+this.es(d.roomType)+'"></div>';
+    h+='<div class="ed"><span class="el">付款方式</span><input class="ei" id="_paymentMethod" value="'+this.es(d.paymentMethod)+'"></div>';
+    h+='<div class="ed"><span class="el">付款状态</span><input class="ei" id="_paymentStatus" value="'+this.es(d.paymentStatus)+'"></div>';
+    h+='<div class="ed"><span class="el">状态</span><select class="es" id="_orderStatus"><option value="已完成"'+(d.orderStatus=='已完成'?' selected':'')+'>已完成</option><option value="未完成"'+(d.orderStatus=='未完成'?' selected':'')+'>未完成</option></select></div>';
+    h+='<div class="ed"><span class="el">备注</span><textarea class="et" id="_notes">'+this.es(d.notes)+'</textarea></div>';
+    h+='<div class="ed"><span class="el">评价</span><textarea class="et" id="_review">'+this.es(d.review)+'</textarea></div>';
+    h+='<div class="ga mt"><button class="btn bp" onclick="A.saveOrd(\''+id+'\','+isNew+')">保存</button></div>';
+    document.getElementById('ob').innerHTML=h;document.getElementById('ov').classList.add('on');
+  },
+  
+  saveOrd(id,isNew){
+    let d={id:id||'ord_'+Date.now(),seq:this.o.length+1,handler:'Jaycy',orderStatus:document.getElementById('_orderStatus').value,groupDate:(new Date()).toISOString().split('T')[0].replace(/-/g,'/'),travelDate:document.getElementById('_travelDate').value,product:document.getElementById('_product').value,endDate:'',customerInfo:document.getElementById('_customerInfo').value,contact:document.getElementById('_contact').value,people:document.getElementById('_people').value,roomType:document.getElementById('_roomType').value,totalPrice:document.getElementById('_totalPrice').value,paymentMethod:document.getElementById('_paymentMethod').value,paymentStatus:document.getElementById('_paymentStatus').value,finalDate:'',notes:document.getElementById('_notes').value,review:document.getElementById('_review').value};
+    if(!d.customerInfo){this.tm('请填客户信息');return}
+    let idx=this.o.findIndex(function(a){return a.id===id});
+    if(idx>=0)this.o[idx]=d;else this.o.unshift(d);
+    this.saveO();this.cl();this.tab(this._t);this.tm('已保存');
+  },
+  
+  saveO(){let v=this._o;this.o=v;if(this._t=='orders')this.ord();if(this._t=='home')this.home()},
+  delOrd(id){if(!confirm('删除?'))return;this.o=this.o.filter(function(a){return a.id!==id});this.saveO();this.cl();this.tab(this._t);this.tm('已删除')},
+  
+  inq(){
+    let self=this;
+    let s=(document.getElementById('_search')||{}).value||'';
+    let f=this._f;
+    let list=this.i.filter(function(x){
+      if(f=='high'&&x.intentionLevel!='高')return false;
+      if(f=='med'&&x.intentionLevel!='中')return false;
+      if(f=='low'&&x.intentionLevel!='低')return false;
+      let t=(x.wechatName+' '+x.plannedTravelDate+' '+x.interestedPackage+' '+x.status).toLowerCase();
+      return t.indexOf(s.toLowerCase())>=0;
+    });
+    let h='<div class="qa"><div class="qb" onclick="A.addInq()">新增咨询</div><div class="qb" onclick="A.tab(\'paste\')">粘贴录入</div><div class="qb" onclick="A.tab(\'home\')">返回首页</div></div>';
+    h+='<div class="sb"><input id="_search" placeholder="搜索微信名/套餐/状态" value="'+self.es(s)+'" oninput="A.inq()"></div>';
+    h+='<div class="cg"><span class="ch'+(f=='all'?' on':'')+'" onclick="A.inqFilter(\'all\')">全部</span><span class="ch'+(f=='high'?' on':'')+'" onclick="A.inqFilter(\'high\')">高意向</span><span class="ch'+(f=='med'?' on':'')+'" onclick="A.inqFilter(\'med\')">中意向</span><span class="ch'+(f=='low'?' on':'')+'" onclick="A.inqFilter(\'low\')">低意向</span></div>';
+    if(list.length==0)h+='<div class="em">没有咨询记录</div>';
+    else{for(let x of list){let bc=x.intentionLevel=='高'?'bh':x.intentionLevel=='中'?'bm':'bl';h+='<div class="ri" onclick="A.showInq(\''+x.id+'\')"><div class="rr"><div class="rn">'+self.es(x.wechatName||'?')+'</div><span class="rb '+bc+'">'+x.intentionLevel+'意向</span></div><div class="rm">'+self.es(x.plannedTravelDate||'?')+' | '+self.es(x.interestedPackage||'?')+'</div></div>';}h+='</div>';}
+    document.getElementById('main').innerHTML=h;
+  },
+  
+  inqFilter(f){this._f=f;this.inq()},
+  
+  ord(){
+    let self=this;
+    let s=(document.getElementById('_search')||{}).value||'';
+    let f=this._f;
+    let list=this.o.filter(function(x){
+      if(f=='done'&&x.orderStatus!='已完成')return false;
+      if(f=='open'&&x.orderStatus!='未完成')return false;
+      let t=(x.customerInfo+' '+x.product+' '+x.travelDate+' '+x.orderStatus+' '+x.contact).toLowerCase();
+      return t.indexOf(s.toLowerCase())>=0;
+    });
+    let h='<div class="qa"><div class="qb" onclick="A.addOrd()">新增成单</div><div class="qb" onclick="A.tab(\'paste\')">粘贴录入</div><div class="qb" onclick="A.tab(\'home\')">返回首页</div></div>';
+    h+='<div class="sb"><input id="_search" placeholder="搜索客户/产品/状态" value="'+self.es(s)+'" oninput="A.ord()"></div>';
+    h+='<div class="cg"><span class="ch'+(f=='all'?' on':'')+'" onclick="A.ordFilter(\'all\')">全部</span><span class="ch'+(f=='done'?' on':'')+'" onclick="A.ordFilter(\'done\')">已完成</span><span class="ch'+(f=='open'?' on':'')+'" onclick="A.ordFilter(\'open\')">未完成</span></div>';
+    if(list.length==0)h+='<div class="em">没有成单记录</div>';
+    else{for(let x of list){let bc=x.orderStatus=='已完成'?'bd':'bo';h+='<div class="ri" onclick="A.showOrd(\''+x.id+'\')"><div class="rr"><div class="rn">'+self.es(x.customerInfo||'?')+'</div><span class="rb '+bc+'">'+x.orderStatus+'</span></div><div class="rm">'+self.es(x.travelDate||'?')+' | '+self.es(x.product||'?')+' | AUD '+self.es(x.totalPrice||'?')+'</div></div>';}h+='</div>';}
+    document.getElementById('main').innerHTML=h;
+  },
+  
+  ordFilter(f){this._f=f;this.ord()},
+  
+  ps(){
+    let self=this;
+    let h='<div class="cg"><span class="ch'+(this.pmode=='inquiry'?' on':'')+'" onclick="A.psMode(\'inquiry\')">粘贴咨询</span><span class="ch'+(this.pmode=='order'?' on':'')+'" onclick="A.psMode(\'order\')">粘贴成单</span></div>';
+    h+='<div class="card"><textarea class="pa" id="_paste" placeholder="把客户消息粘贴到这里...\n\n例: 客户Mako 6月23-26去西澳 3人 粉湖两日游+波浪岩 等拼房"></textarea></div>';
+    h+='<button class="btn bp" onclick="A.psParse()">识别并填入</button>';
+    h+='<div id="_pr" class="hid mt"></div>';
+    h+='<button class="btn bp hid mt" id="_psave" onclick="A.psSave()">确认保存</button>';
+    document.getElementById('main').innerHTML=h;
+    this.pdata=null;
+  },
+  
+  psMode(m){this.pmode=m;this.ps()},
+  
+  psParse(){
+    let text=document.getElementById('_paste').value.trim();
+    if(!text){this.tm('请先粘贴文字');return}
+    let d;
+    if(this.pmode=='inquiry'){
+      d={firstInquiryDate:(new Date()).toISOString().split('T')[0],wechatName:'',plannedTravelDate:'',days:'',people:'',interestedPackage:'',status:'',intentionLevel:'中',followUp1:text,followUp2:'',followUp3:''};
+      let nm=text.match(/客户[:：]?([^，。\d]{2,20})/)||text.match(/([^，。\s]{2,20})(?:问|咨询|想)/);if(nm)d.wechatName=nm[1].trim();
+      let dt=text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?[-~～](\d{1,2})/);if(dt)d.plannedTravelDate=dt[1]+'.'+dt[2]+'-'+dt[3];
+      if(!d.plannedTravelDate){let dt2=text.match(/(\d{1,2}[.\-/]\d{1,2})[-~～](\d{1,2})/);if(dt2)d.plannedTravelDate=dt2[1]+'-'+dt2[2]}
+      if(!d.plannedTravelDate){let dt3=text.match(/(\d{1,2})月(\d{1,2})[日号]?/);if(dt3)d.plannedTravelDate=dt3[1]+'.'+dt3[2]}
+      let pm=text.match(/(\d+)\s*[个]?\s*人/);if(pm)d.people=pm[1];
+      let dm=text.match(/(\d+)\s*[个]?\s*天/);if(dm)d.days=dm[1];
+      let pks=['粉湖超值','粉湖轻奢','粉湖','波浪岩','玛格丽特河','罗岛','全景七日','明星六日','浪漫五日','纯玩','轻松四日','一日游','两日游','三日游','四日游','五日游','六日游','七日游'];
+      let fpk=[];for(let k of pks){if(text.indexOf(k)>=0&&!fpk.some(function(e){return e.indexOf(k)>=0}))fpk.push(k)}if(fpk.length)d.interestedPackage=fpk.join(' ');
+      if(text.indexOf('意向很高')>=0||text.indexOf('本周付款')>=0||text.indexOf('付定金')>=0)d.intentionLevel='高';
+      else if(text.indexOf('只是咨询')>=0||text.indexOf('无回复')>=0||text.indexOf('没回复')>=0)d.intentionLevel='低';
+    }else{
+      let td=(new Date()).toISOString().split('T')[0].replace(/-/g,'/');
+      d={seq:this.o.length+1,handler:'Jaycy',orderStatus:'未完成',groupDate:td,travelDate:'',product:'',endDate:'',customerInfo:'',contact:'',people:'',roomType:'',totalPrice:'',paymentMethod:'',paymentStatus:'',finalDate:'',notes:text,review:''};
+      let nm=text.match(/客户[:：]?([^，。\d]{2,20})/);if(nm)d.customerInfo=nm[1].trim();
+      let ph=text.match(/(?:\+?86\s*)?1[3-9]\d{9}|\d{8,11}/);if(ph)d.contact=ph[0];
+      let dt=text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?[-~～](\d{1,2})/);if(dt)d.travelDate=dt[1]+'.'+dt[2]+'-'+dt[3];
+      if(!d.travelDate){let dt2=text.match(/(\d{1,2}[.\-/]\d{1,2})[-~～](\d{1,2})/);if(dt2)d.travelDate=dt2[1]+'-'+dt2[2]}
+      if(!d.travelDate){let dt3=text.match(/(\d{1,2})月(\d{1,2})[日号]?/);if(dt3)d.travelDate=dt3[1]+'.'+dt3[2]}
+      let pks=['粉湖超值','粉湖轻奢','粉湖','波浪岩','玛格丽特河','罗岛','全景七日','明星六日','浪漫五日','纯玩','轻松四日','一日游','两日游','三日游','四日游','五日游','六日游','七日游'];
+      let fpk=[];for(let k of pks){if(text.indexOf(k)>=0&&!fpk.some(function(e){return e.indexOf(k)>=0}))fpk.push(k)}if(fpk.length)d.product=fpk.join(' ');
+      let pm=text.match(/(\d+)\s*[个]?\s*人/);if(pm)d.people=pm[1];
+      let rm=text.match(/(大床房|双床房|单人间|三人房|拼房|大床|双床)/);if(rm)d.roomType=rm[1];
+      let pr=text.match(/(\d{3,5})(?![\d.])\s*(?:AUD|澳币|元|块|刀|rmb)/i)||text.match(/(?:总价|价格||AUD|澳币)\s*(\d{3,5})/i);if(pr)d.totalPrice=pr[1];
+      if(text.indexOf('微信')>=0)d.paymentMethod='微信转账';else if(text.indexOf('支付宝')>=0)d.paymentMethod='支付宝转账';else if(text.indexOf('澳币')>=0)d.paymentMethod='澳币转账';else if(text.indexOf('现金')>=0)d.paymentMethod='现金';else if(text.indexOf('携程')>=0)d.paymentMethod='携程';
+      if(text.indexOf('已付全款')>=0||text.indexOf('全款支付')>=0)d.paymentStatus='全款支付';else if(text.indexOf('定金')>=0)d.paymentStatus='已付定金';else if(text.indexOf('尾款')>=0)d.paymentStatus='待付尾款';else if(text.indexOf('结清')>=0)d.paymentStatus='结清';
+    }
+    this.pdata=d;
+    let h='<div class="card-title">识别结果</div>';
+    let keys=this.pmode=='inquiry'?['wechatName:微信名','firstInquiryDate:首询日期','plannedTravelDate:出行日期','days:天数','people:人数','interestedPackage:套餐','status:状态','intentionLevel:意向']:['customerInfo:客户','contact:电话','travelDate:出行日期','product:产品','people:人数','totalPrice:总价','roomType:房型','paymentMethod:付款方式','paymentStatus:付款状态','orderStatus:订单状态'];
+    for(let k of keys){let [key,label]=k.split(':');h+='<div class="pi"><span class="pl">'+label+'</span><span class="pv">'+A.es(d[key]||'-')+'</span></div>'}
+    document.getElementById('_pr').innerHTML='<div class="pr">'+h+'</div>';document.getElementById('_pr').classList.remove('hid');document.getElementById('_psave').classList.remove('hid');
+  },
+  
+  psSave(){
+    if(!this.pdata){this.tm('请先识别');return}
+    if(this.pmode=='inquiry'){this.pdata.id='inq_'+Date.now();this.i.unshift(this.pdata);this.saveI();this.tm('咨询已保存')}else{this.pdata.id='ord_'+Date.now();this.o.unshift(this.pdata);this.saveO();this.tm('成单已保存')}
+    this.pdata=null;this.ps();
+  },
+  
+  set(){
+    let h='<div style="display:flex;justify-content:space-between;margin-bottom:16px"><b>设置</b><span class="ov-close" onclick="A.cl()">&times;</span></div>';
+    h+='<button class="btn bs mt" onclick="A.expInq()">导出咨询表('+this.i.length+'条)</button>';
+    h+='<button class="btn bs mt" onclick="A.expOrd()">导出成单表('+this.o.length+'条)</button>';
+    h+='<button class="btn bs mt" onclick="A.expAll()">备份全部数据</button>';
+    h+='<button class="btn bdg mt" onclick="A.clr()">清空所有数据</button>';
+    document.getElementById('ob').innerHTML=h;document.getElementById('ov').classList.add('on');
+  },
+  
+  expInq(){let csv='\uFEFF首询日期,微信名,出行日期,天数,人数,套餐,状态,意向,跟进1,跟进2,跟进3\n';for(let x of this.i)csv+=[x.firstInquiryDate,x.wechatName,x.plannedTravelDate,x.days,x.people,x.interestedPackage,x.status,x.intentionLevel,x.followUp1,x.followUp2,x.followUp3].map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"'}).join(',')+'\n';this.dl('咨询表.csv',csv);this.tm('导出'+this.i.length+'条')},
+  expOrd(){let csv='\uFEFF序号,接单号,状态,拉群日期,出行日期,产品,结束日期,客户,电话,人数,房型,总价,付款方式,付款状态,尾款日期,备注,评价\n';for(let x of this.o)csv+=[x.seq,x.handler,x.orderStatus,x.groupDate,x.travelDate,x.product,x.endDate,x.customerInfo,x.contact,x.people,x.roomType,x.totalPrice,x.paymentMethod,x.paymentStatus,x.finalDate,x.notes,x.review].map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"'}).join(',')+'\n';this.dl('成单表.csv',csv);this.tm('导出'+this.o.length+'条')},
+  expAll(){let d=JSON.stringify({i:this.i,o:this.o},null,2);this.dl('backup.json',d);this.tm('备份完成')},
+  dl(n,c){let b=new Blob([c],{type:'text/csv;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href)},
+  clr(){if(confirm('确定清空所有数据？不可恢复！')){this.i=[];this.o=[];this.tab('home');this.tm('已清空')}},
+};
+A.tab('home');
+</script></body></html>
