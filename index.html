@@ -243,44 +243,83 @@ const A={
       if(kv['产品']){let pm0=kv['产品'].match(/(\d+)\s*人/);if(pm0)d.people=pm0[1];}
       if(!d.people){let pm=text.match(/(\d+)\s*[个]?\s*人/);if(pm)d.people=pm[1];}
 
-      // 房型：优先按「房型：」标签完整读取
+      // 房型：优先按「房型：」标签完整读取（含赠送说明）
       if(kv['房型']){
         d.roomType=kv['房型'].trim();
       }else{
         let rm=text.match(/(大床房|双床房|单人间|三人房|拼房|大床|双床)/);if(rm)d.roomType=rm[1];
       }
 
-      // 总价：优先读「收付款备注/价格/总价」标签里的「合计 X 澳元」
-      if(kv['收付款备注']||kv['价格']||kv['总价']){
-        let prm=(kv['收付款备注']||kv['价格']||kv['总价']).match(/合计\s*(\d+(?:\.\d+)?)\s*澳元?/);
-        if(prm)d.totalPrice=prm[1];
+      // 收付款备注详细解析
+      let payText=kv['收付款备注']||'';
+      if(payText){
+        // 合计
+        let totalMatch=payText.match(/合计\s*(\d+(?:\.\d+)?)\s*澳元?/);
+        if(totalMatch)d.totalPrice=totalMatch[1];
+
+        // 定金条款：把「日期+支付定金+金额+（支付方式）」整段填入付款方式
+        let depositMatch=payText.match(/(\d{4}\.\d{2}\.\d{2}\s*支付定金\s*\d+(?:\.\d+)?\s*(?:aud|澳币)\s*[（(][^)）]+[)）])/i);
+        if(!depositMatch){depositMatch=payText.match(/(支付定金\s*\d+(?:\.\d+)?\s*(?:aud|澳币)\s*[（(][^)）]+[)）])/i);}
+        if(depositMatch){d.paymentMethod=depositMatch[1].trim();d.paymentStatus='已付定金';}
+
+        // 全款条款
+        if(/全款支付|已支付全款/.test(payText)){
+          d.paymentStatus='全款支付';
+          let fullMatch=payText.match(/(\d{4}\.\d{2}\.\d{2}\s*支付全款\s*\d+(?:\.\d+)?\s*(?:aud|澳币)\s*[（(][^)）]+[)）])/i);
+          if(!fullMatch){fullMatch=payText.match(/(支付全款\s*\d+(?:\.\d+)?\s*(?:aud|澳币)\s*[（(][^)）]+[)）])/i);}
+          if(fullMatch)d.paymentMethod=fullMatch[1].trim();
+        }
+
+        // 尾款条款：把整段填入尾款日期
+        let finalMatch=payText.match(/(尾款[于在]?\s*[^，,。]+?(?:人民币扫码支付|支付宝|微信|澳币|现金)\s*\d+(?:\.\d+)?\s*(?:aud|澳币)?\s*[（(][^)）]+[)）])/i);
+        if(!finalMatch){finalMatch=payText.match(/(尾款[于在]?\s*[^，,。]+)/i);}
+        if(finalMatch)d.finalDate=finalMatch[1].trim();
       }
+
+      // 总价兜底
       if(!d.totalPrice){
         let pr=text.match(/(\d{3,5})(?![\d.])\s*(?:AUD|澳币|元|块|刀|rmb)/i)||text.match(/(?:总价|价格|合计)\s*[:：]?\s*(\d{3,5})/i);
         if(pr)d.totalPrice=pr[1];
       }
 
-      // 付款方式
-      if(kv['收付款备注']){
-        if(/支付宝/.test(kv['收付款备注']))d.paymentMethod='支付宝转账';
-        else if(/微信/.test(kv['收付款备注']))d.paymentMethod='微信转账';
-        else if(/澳币/.test(kv['收付款备注']))d.paymentMethod='澳币转账';
-        else if(/现金/.test(kv['收付款备注']))d.paymentMethod='现金';
-      }
+      // 付款方式兜底
       if(!d.paymentMethod){
-        if(text.indexOf('微信')>=0)d.paymentMethod='微信转账';else if(text.indexOf('支付宝')>=0)d.paymentMethod='支付宝转账';else if(text.indexOf('澳币')>=0)d.paymentMethod='澳币转账';else if(text.indexOf('现金')>=0)d.paymentMethod='现金';else if(text.indexOf('携程')>=0)d.paymentMethod='携程';
+        if(kv['收付款备注']){
+          if(/支付宝/.test(kv['收付款备注']))d.paymentMethod='支付宝转账';
+          else if(/微信/.test(kv['收付款备注']))d.paymentMethod='微信转账';
+          else if(/澳币/.test(kv['收付款备注']))d.paymentMethod='澳币转账';
+          else if(/现金/.test(kv['收付款备注']))d.paymentMethod='现金';
+        }
+        if(!d.paymentMethod){
+          if(text.indexOf('微信')>=0)d.paymentMethod='微信转账';else if(text.indexOf('支付宝')>=0)d.paymentMethod='支付宝转账';else if(text.indexOf('澳币')>=0)d.paymentMethod='澳币转账';else if(text.indexOf('现金')>=0)d.paymentMethod='现金';else if(text.indexOf('携程')>=0)d.paymentMethod='携程';
+        }
       }
 
-      // 付款状态
-      if(kv['收付款备注']){
-        if(/已支付全款|全款/.test(kv['收付款备注']))d.paymentStatus='全款支付';
-        else if(/定金/.test(kv['收付款备注']))d.paymentStatus='已付定金';
-        else if(/尾款/.test(kv['收付款备注']))d.paymentStatus='待付尾款';
-        else if(/结清/.test(kv['收付款备注']))d.paymentStatus='结清';
-      }
+      // 付款状态兜底
       if(!d.paymentStatus){
-        if(text.indexOf('已付全款')>=0||text.indexOf('全款支付')>=0)d.paymentStatus='全款支付';else if(text.indexOf('定金')>=0)d.paymentStatus='已付定金';else if(text.indexOf('尾款')>=0)d.paymentStatus='待付尾款';else if(text.indexOf('结清')>=0)d.paymentStatus='结清';
+        if(kv['收付款备注']){
+          if(/已支付全款|全款/.test(kv['收付款备注']))d.paymentStatus='全款支付';
+          else if(/定金/.test(kv['收付款备注']))d.paymentStatus='已付定金';
+          else if(/尾款/.test(kv['收付款备注']))d.paymentStatus='待付尾款';
+          else if(/结清/.test(kv['收付款备注']))d.paymentStatus='结清';
+        }
+        if(!d.paymentStatus){
+          if(text.indexOf('已付全款')>=0||text.indexOf('全款支付')>=0)d.paymentStatus='全款支付';else if(text.indexOf('定金')>=0)d.paymentStatus='已付定金';else if(text.indexOf('尾款')>=0)d.paymentStatus='待付尾款';else if(text.indexOf('结清')>=0)d.paymentStatus='结清';
+        }
       }
+
+      // 备注整理：把接送地址、接送机、赠送信息结构化展示
+      let noteParts=[];
+      if(kv['接送地址'])noteParts.push('接送地址：'+kv['接送地址'].trim());
+      let pickupMatch=text.match(/接送机[：:]\s*([\s\S]{3,500}?)(?=\n\n|$)/);
+      if(pickupMatch)noteParts.push('接送机：\n'+pickupMatch[1].trim());
+      let giftMatch=text.match(/[（(]([^)）]*(?:赠送|免费)[^)）]*)[)）]/g);
+      if(giftMatch){
+        let gifts=[];
+        for(let g of giftMatch){gifts.push(g.replace(/[（()）]/g,''));}
+        noteParts.push('赠送/包含：'+gifts.join('，'));
+      }
+      if(noteParts.length)d.notes=noteParts.join('\n')+'\n\n---\n\n'+text;
     }
     
     this.pdata=d;
