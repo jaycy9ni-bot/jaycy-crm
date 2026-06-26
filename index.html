@@ -207,19 +207,82 @@ const A={
     }else{
       let td=(new Date()).toISOString().split('T')[0].replace(/-/g,'/');
       d={seq:this.o.length+1,handler:'Jaycy',orderStatus:'未完成',groupDate:td,travelDate:'',product:'',endDate:'',customerInfo:'',contact:'',people:'',roomType:'',totalPrice:'',paymentMethod:'',paymentStatus:'',finalDate:'',notes:text,review:''};
-      let nm=text.match(/客户[:：]?([^，。\d]{2,20})/);if(nm)d.customerInfo=nm[1].trim();
+
+      // 按「标签：值」提取常见字段
+      let kv={};
+      text.replace(/([^\n：:]+)[：:]\s*([^\n]+)/g,function(m,k,v){kv[k.trim()]=v.trim();});
+
+      // 客户姓名：支持「客人姓名」到「联系电话」之间的多行内容
+      let nm=text.match(/(?:客人姓名|客户姓名|姓名)[：: ]?\s*([\s\S]{3,500}?)\s*联系(?:电话|方式)[：:]/);
+      if(nm) d.customerInfo=nm[1].trim().replace(/\s+/g,' ');
+      if(!d.customerInfo){let nm2=text.match(/客户[:：]?([^，。\d]{2,20})/);if(nm2)d.customerInfo=nm2[1].trim();}
+
+      // 电话
       let ph=text.match(/(?:\+?86\s*)?1[3-9]\d{9}|\d{8,11}/);if(ph)d.contact=ph[0];
-      let dt=text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?[-~～](\d{1,2})/);if(dt)d.travelDate=dt[1]+'.'+dt[2]+'-'+dt[3];
+
+      // 出行日期：优先读「时间/出行日期/出团日期/团期」标签
+      let dateLabel=kv['时间']||kv['出行日期']||kv['出团日期']||kv['团期'];
+      if(dateLabel){
+        let dm=dateLabel.match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+        if(dm) d.travelDate=dm[1]+'.'+dm[2]+'.'+dm[3];
+        else{let dm2=dateLabel.match(/(\d{1,2})\.(\d{1,2})/);if(dm2)d.travelDate=dm2[1]+'.'+dm2[2];}
+      }
+      if(!d.travelDate){let dt=text.match(/(\d{1,2})月(\d{1,2})(?:日|号)?[-~～](\d{1,2})/);if(dt)d.travelDate=dt[1]+'.'+dt[2]+'-'+dt[3];}
       if(!d.travelDate){let dt2=text.match(/(\d{1,2}[.\-/]\d{1,2})[-~～](\d{1,2})/);if(dt2)d.travelDate=dt2[1]+'-'+dt2[2]}
       if(!d.travelDate){let dt3=text.match(/(\d{1,2})月(\d{1,2})[日号]?/);if(dt3)d.travelDate=dt3[1]+'.'+dt3[2]}
-      let pks=['粉湖超值','粉湖轻奢','粉湖','波浪岩','玛格丽特河','罗岛','全景七日','明星六日','浪漫五日','纯玩','轻松四日','一日游','两日游','三日游','四日游','五日游','六日游','七日游'];
-      let fpk=[];for(let k of pks){if(text.indexOf(k)>=0&&!fpk.some(function(e){return e.indexOf(k)>=0}))fpk.push(k)}if(fpk.length)d.product=fpk.join(' ');
-      let pm=text.match(/(\d+)\s*[个]?\s*人/);if(pm)d.people=pm[1];
-      let rm=text.match(/(大床房|双床房|单人间|三人房|拼房|大床|双床)/);if(rm)d.roomType=rm[1];
-      let pr=text.match(/(\d{3,5})(?![\d.])\s*(?:AUD|澳币|元|块|刀|rmb)/i)||text.match(/(?:总价|价格||AUD|澳币)\s*(\d{3,5})/i);if(pr)d.totalPrice=pr[1];
-      if(text.indexOf('微信')>=0)d.paymentMethod='微信转账';else if(text.indexOf('支付宝')>=0)d.paymentMethod='支付宝转账';else if(text.indexOf('澳币')>=0)d.paymentMethod='澳币转账';else if(text.indexOf('现金')>=0)d.paymentMethod='现金';else if(text.indexOf('携程')>=0)d.paymentMethod='携程';
-      if(text.indexOf('已付全款')>=0||text.indexOf('全款支付')>=0)d.paymentStatus='全款支付';else if(text.indexOf('定金')>=0)d.paymentStatus='已付定金';else if(text.indexOf('尾款')>=0)d.paymentStatus='待付尾款';else if(text.indexOf('结清')>=0)d.paymentStatus='结清';
+
+      // 产品：优先按「产品：」标签，去除末尾的「3人」等人数信息
+      if(kv['产品']){
+        d.product=kv['产品'].replace(/\s+\d+\s*人\s*$/,'').trim();
+      }else{
+        let pks=['粉湖超值','粉湖轻奢','粉湖','波浪岩','玛格丽特河','罗岛','全景七日游','明星六日游','浪漫五日游','纯玩','轻松四日','一日游','两日游','三日游','四日游','五日游','六日游','七日游'];
+        let fpk=[];for(let k of pks){if(text.indexOf(k)>=0&&!fpk.some(function(e){return e.indexOf(k)>=0}))fpk.push(k)}if(fpk.length)d.product=fpk.join(' ');
+      }
+
+      // 人数：优先读「产品」标签里的人数，再全局匹配
+      if(kv['产品']){let pm0=kv['产品'].match(/(\d+)\s*人/);if(pm0)d.people=pm0[1];}
+      if(!d.people){let pm=text.match(/(\d+)\s*[个]?\s*人/);if(pm)d.people=pm[1];}
+
+      // 房型：优先按「房型：」标签完整读取
+      if(kv['房型']){
+        d.roomType=kv['房型'].trim();
+      }else{
+        let rm=text.match(/(大床房|双床房|单人间|三人房|拼房|大床|双床)/);if(rm)d.roomType=rm[1];
+      }
+
+      // 总价：优先读「收付款备注/价格/总价」标签里的「合计 X 澳元」
+      if(kv['收付款备注']||kv['价格']||kv['总价']){
+        let prm=(kv['收付款备注']||kv['价格']||kv['总价']).match(/合计\s*(\d+(?:\.\d+)?)\s*澳元?/);
+        if(prm)d.totalPrice=prm[1];
+      }
+      if(!d.totalPrice){
+        let pr=text.match(/(\d{3,5})(?![\d.])\s*(?:AUD|澳币|元|块|刀|rmb)/i)||text.match(/(?:总价|价格|合计)\s*[:：]?\s*(\d{3,5})/i);
+        if(pr)d.totalPrice=pr[1];
+      }
+
+      // 付款方式
+      if(kv['收付款备注']){
+        if(/支付宝/.test(kv['收付款备注']))d.paymentMethod='支付宝转账';
+        else if(/微信/.test(kv['收付款备注']))d.paymentMethod='微信转账';
+        else if(/澳币/.test(kv['收付款备注']))d.paymentMethod='澳币转账';
+        else if(/现金/.test(kv['收付款备注']))d.paymentMethod='现金';
+      }
+      if(!d.paymentMethod){
+        if(text.indexOf('微信')>=0)d.paymentMethod='微信转账';else if(text.indexOf('支付宝')>=0)d.paymentMethod='支付宝转账';else if(text.indexOf('澳币')>=0)d.paymentMethod='澳币转账';else if(text.indexOf('现金')>=0)d.paymentMethod='现金';else if(text.indexOf('携程')>=0)d.paymentMethod='携程';
+      }
+
+      // 付款状态
+      if(kv['收付款备注']){
+        if(/已支付全款|全款/.test(kv['收付款备注']))d.paymentStatus='全款支付';
+        else if(/定金/.test(kv['收付款备注']))d.paymentStatus='已付定金';
+        else if(/尾款/.test(kv['收付款备注']))d.paymentStatus='待付尾款';
+        else if(/结清/.test(kv['收付款备注']))d.paymentStatus='结清';
+      }
+      if(!d.paymentStatus){
+        if(text.indexOf('已付全款')>=0||text.indexOf('全款支付')>=0)d.paymentStatus='全款支付';else if(text.indexOf('定金')>=0)d.paymentStatus='已付定金';else if(text.indexOf('尾款')>=0)d.paymentStatus='待付尾款';else if(text.indexOf('结清')>=0)d.paymentStatus='结清';
+      }
     }
+    
     this.pdata=d;
     let h='<div class="card-title">识别结果</div>';
     let keys=this.pmode=='inquiry'?['wechatName:微信名','firstInquiryDate:首询日期','plannedTravelDate:出行日期','days:天数','people:人数','interestedPackage:套餐','status:状态','intentionLevel:意向']:['customerInfo:客户','contact:电话','travelDate:出行日期','product:产品','people:人数','totalPrice:总价','roomType:房型','paymentMethod:付款方式','paymentStatus:付款状态','orderStatus:订单状态'];
