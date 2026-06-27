@@ -15,6 +15,14 @@ nav { border-top: 1px solid #e2e8f0; display: flex; background: #fff; padding: 8
 .nav-item.active { color: #0d9488; }
 .card { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 12px; }
 .card-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; display: flex; align-items: center; justify-content: space-between; }
+.img-up { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 14px; text-align: center; color: #64748b; font-size: 14px; margin-top: 10px; cursor: pointer; background: #f8fafc; }
+.img-up:active { background: #e2e8f0; }
+.img-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.img-thumb { width: 72px; height: 72px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; background: #f1f5f9; }
+.img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.img-thumb .img-status { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; padding: 2px 4px; text-align: center; }
+.img-error { color: #ef4444; font-size: 13px; margin-top: 8px; }
+.ocr-status { font-size: 12px; color: #0d9488; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .st { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); text-align: center; cursor: pointer; }
 .st:active { transform: scale(.98); }
@@ -81,6 +89,7 @@ nav { border-top: 1px solid #e2e8f0; display: flex; background: #fff; padding: 8
 .fu-card .fu-meta { font-size: 12px; color: #64748b; }
 .fu-card .fu-action { font-size: 12px; color: #0d9488; margin-top: 6px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head><body>
 <div id="app"><header><h1 id="ht">Jaycy AI CRM</h1><span id="_sync" onclick="A.exportData()">备份</span></header>
 <div id="main"></div>
@@ -285,7 +294,11 @@ const A = {
   addScreen() {
     let h = '<div class="cg"><span class="ch ' + (this._mode === 'ai' ? 'on' : '') + '" onclick="A.setMode(\'ai\')">AI 粘贴</span><span class="ch ' + (this._mode === 'manual' ? 'on' : '') + '" onclick="A.setMode(\'manual\')">手动录入</span></div>';
     if (this._mode === 'ai') {
-      h += '<div class="card"><div class="card-title">AI 解析聊天记录</div><textarea class="pa" id="_paste" placeholder="把客户聊天记录粘贴到这里，AI 会自动提取客户信息、评分、跟进建议..."></textarea></div>';
+      h += '<div class="card"><div class="card-title">AI 解析聊天记录</div><textarea class="pa" id="_paste" placeholder="把客户聊天记录粘贴到这里，或点击下方上传聊天截图，AI 会自动提取客户信息、评分、跟进建议..." onpaste="A.handlePaste(event)"></textarea>';
+      h += '<div class="img-up" onclick="A.pickImage()"><span>📷 上传聊天截图</span></div>';
+      h += '<input type="file" id="_imgInput" accept="image/*" class="hid" onchange="A.handleImage(this)" multiple>';
+      h += '<div id="_imgPreview" class="img-preview"></div>';
+      h += '</div>';
       h += '<button class="btn bp" onclick="A.aiParse()">AI 解析</button>';
       h += '<div id="_aiResult" class="hid"></div>';
     } else {
@@ -302,9 +315,96 @@ const A = {
 
   setMode(m) { this._mode = m; this.addScreen(); },
 
+  pickImage() { document.getElementById('_imgInput').click(); },
+
+  handlePaste(e) {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    const files = [];
+    for (let item of items) {
+      if (item.kind === 'file' && item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      this.ocrImages(files);
+    }
+  },
+
+  handleImage(input) {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+    input.value = '';
+    this.ocrImages(files);
+  },
+
+  renderImagePreview(files, statusMap) {
+    const box = document.getElementById('_imgPreview');
+    let h = '';
+    for (let i = 0; i < files.length; i++) {
+      const url = URL.createObjectURL(files[i]);
+      const status = statusMap && statusMap[i] ? statusMap[i] : '识别中...';
+      h += '<div class="img-thumb"><img src="' + url + '"><span class="img-status">' + this.es(status) + '</span></div>';
+    }
+    box.innerHTML = h;
+  },
+
+  async ocrImages(files) {
+    if (!window.Tesseract) {
+      document.getElementById('_imgPreview').innerHTML = '<div class="img-error">OCR 库未加载，请检查网络</div>';
+      return;
+    }
+    const preview = document.getElementById('_imgPreview');
+    const statusMap = files.map(() => '识别中...');
+    this.renderImagePreview(files, statusMap);
+
+    const paste = document.getElementById('_paste');
+    let ocrParts = [];
+    let worker = null;
+    try {
+      const status = document.createElement('div');
+      status.className = 'ocr-status';
+      status.innerHTML = '<span>⏳ 正在加载 OCR 引擎，首次使用需下载语言包...</span>';
+      preview.parentElement.insertBefore(status, preview.nextSibling);
+
+      worker = await Tesseract.createWorker('chi_sim+eng');
+      status.remove();
+
+      for (let i = 0; i < files.length; i++) {
+        statusMap[i] = '识别中...';
+        this.renderImagePreview(files, statusMap);
+        const { data: { text } } = await worker.recognize(files[i]);
+        statusMap[i] = '已识别';
+        this.renderImagePreview(files, statusMap);
+        const clean = (text || '').trim();
+        if (clean) {
+          ocrParts.push('[图片识别内容' + (files.length > 1 ? ' ' + (i + 1) : '') + ']\n' + clean);
+        }
+      }
+      await worker.terminate();
+
+      if (ocrParts.length) {
+        const current = paste.value.trim();
+        const insert = ocrParts.join('\n\n');
+        paste.value = current ? current + '\n\n' + insert : insert;
+      }
+
+      setTimeout(() => {
+        document.getElementById('_imgPreview').innerHTML = '';
+      }, 2000);
+      this.tm('图片文字识别完成');
+    } catch (e) {
+      console.error('OCR error:', e);
+      preview.innerHTML = '<div class="img-error">识别失败：' + this.es(e.message || '请检查网络或图片格式') + '</div>';
+      if (worker) { try { await worker.terminate(); } catch (err) {} }
+    }
+  },
+
   async aiParse() {
     const text = document.getElementById('_paste').value.trim();
-    if (!text) { this.tm('请先粘贴聊天记录'); return; }
+    if (!text) { this.tm('请先粘贴聊天记录或上传截图'); return; }
     const box = document.getElementById('_aiResult');
     box.classList.remove('hid');
     box.innerHTML = '<div class="sc">AI 解析中...</div>';
