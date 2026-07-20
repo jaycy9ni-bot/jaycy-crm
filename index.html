@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f8fafc">
+  <title>Jaycy CRM - 双工作管理系统</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/base.css">
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- 应用模块（按依赖顺序加载） -->
+  <script src="js/utils.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/wa-module.js"></script>
+  <script src="js/xl-module.js"></script>
+  <script src="js/ai-service.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/notification.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // Supabase 加载完成后初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.JC && JC.App) {
+        JC.App.init();
+      } else {
+        // 等待所有脚本加载
+        let retries = 0;
+        const checkInit = setInterval(() => {
+          if (window.JC && JC.App) {
+            clearInterval(checkInit);
+            JC.App.init();
+          }
+          if (++retries > 50) clearInterval(checkInit);
+        }, 100);
+      }
+    });
+  </script>
+</body>
+</html>
