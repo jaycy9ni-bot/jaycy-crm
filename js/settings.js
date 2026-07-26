@@ -34,8 +34,16 @@ JC.Settings = (() => {
 
       <div class="card">
         <div class="card-title mb-12">📤 数据导出</div>
-        <button class="btn btn-outline btn-sm btn-block" id="btn-export-deals">导出成单表 CSV</button>
-        <button class="btn btn-outline btn-sm btn-block mt-8" id="btn-export-json">导出全部 JSON 备份</button>
+        <button class="btn btn-outline btn-sm btn-block mb-8" id="btn-export-customers">📥 导出咨询表 (.xls)</button>
+        <button class="btn btn-outline btn-sm btn-block mb-8" id="btn-export-deals">📥 导出成单表 (.xls)</button>
+        <button class="btn btn-outline btn-sm btn-block" id="btn-export-json">📥 导出全部 JSON 备份</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title mb-12">🗑️ 数据清理</div>
+        <p class="text-sm text-muted mb-8">清理幽灵数据（之前导入失败的残留）</p>
+        <button class="btn btn-danger btn-sm btn-block" id="btn-clean-orphans" style="background:#EF4444;color:#fff;border:none;">🗑️ 清理幽灵数据</button>
+        <p id="clean-status" class="text-xs text-muted mt-4" style="display:none;"></p>
       </div>
 
       <div class="card">
@@ -53,6 +61,7 @@ JC.Settings = (() => {
       await JC.Supabase.updateProfile({ deepseek_api_key: document.getElementById('s-key').value.trim() });
       u.toast('已保存 ✅');
     });
+    document.getElementById('btn-export-customers').addEventListener('click', () => JC.WA.exportCustomersCSV());
     document.getElementById('btn-export-deals').addEventListener('click', () => JC.WA.exportDealsCSV());
     document.getElementById('btn-import-deals').addEventListener('click', async () => {
       const btn = document.getElementById('btn-import-deals');
@@ -105,6 +114,29 @@ JC.Settings = (() => {
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
       a.download = `jaycy-crm-${u.today()}.json`; a.click();
       u.toast('导出完成 ✅');
+    });
+    document.getElementById('btn-clean-orphans').addEventListener('click', async () => {
+      if (!confirm('确定要清理幽灵数据吗？（之前导入失败、owner_id 为空的数据）。此操作不可撤销。')) return;
+      const btn = document.getElementById('btn-clean-orphans');
+      const status = document.getElementById('clean-status');
+      btn.disabled = true;
+      btn.textContent = '⏳ 清理中...';
+      status.style.display = 'block';
+      status.textContent = '正在清理...';
+      try {
+        const c = JC.Supabase.getClient();
+        const r1 = await c.from('wa_customers').delete({ count: 'exact' }).is('owner_id', null);
+        const r2 = await c.from('wa_deals').delete({ count: 'exact' }).is('owner_id', null);
+        const total = (r1.count || 0) + (r2.count || 0);
+        status.textContent = `✅ 已清理 ${total} 条幽灵数据（咨询 ${r1.count || 0} + 成单 ${r2.count || 0}）`;
+        btn.textContent = '✅ 清理完成';
+        u.toast(`已清理 ${total} 条幽灵数据`);
+        setTimeout(() => { btn.textContent = '🗑️ 清理幽灵数据'; btn.disabled = false; }, 3000);
+      } catch (e) {
+        status.textContent = '❌ 清理失败: ' + (e.message || '未知错误');
+        btn.textContent = '🗑️ 重试清理';
+        btn.disabled = false;
+      }
     });
   }
 
