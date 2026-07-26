@@ -198,7 +198,25 @@ JC.AI = (() => {
           body: JSON.stringify({
             model: 'deepseek-chat',
             messages: [
-              { role: 'system', content: '你是西澳旅游销售专家。从聊天记录提取JSON: {"nickname":"","contact":"","travelDate":"","travelDays":"","peopleCount":"","relationship":"","productInterest":"","concerns":[],"score":0,"grade":"","followUpScript":""}。只输出JSON。' },
+              { role: 'system', content: `你是西澳旅游销售专家。从聊天记录提取信息，输出严格JSON。
+
+输出格式：
+{"nickname":"微信昵称","contact":"联系方式","travelDate":"计划出行日期","travelDays":"天数","peopleCount":"人数","relationship":"家庭游/亲子游/情侣游/夫妻游/朋友游/独自出行/未知","productInterest":"意向产品名称","concerns":["卡点1","卡点2"],"score":0,"grade":"A/B/C/D","followUpScript":"跟进话术"}
+
+评分规则（总分100）：
+- 已购买机票：+25
+- 签证已办理/办理中：+20
+- 出行时间明确（具体到月）：+15
+- 人数明确：+10
+- 主动询价/问价格：+15
+- 已确定产品方向：+10
+- 回复积极/有互动：+5
+
+等级：A(80-100) 高意向，B(60-79) 中高意向，C(40-59) 中低意向，D(<40) 低意向
+
+concerns 提取客户明确提到的顾虑，如"价格敏感""等签证""等朋友确认""时间不确定"等。
+followUpScript 写一段自然的中文跟进话术，针对客户的具体情况。
+只输出JSON，不要任何解释。` },
               { role: 'user', content: text },
             ],
             temperature: 0.2,
