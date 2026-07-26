@@ -63,7 +63,10 @@ JC.WA = (() => {
   // ==================== 咨询表 ====================
   async function renderCustomers(container) {
     container.innerHTML = `
-      <button class="btn btn-primary btn-block mb-12" onclick="JC.Router.navigate('add')">➕ 添加客户</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-primary flex-1" onclick="JC.Router.navigate('add')">➕ 添加客户</button>
+        <button class="btn btn-outline flex-1" onclick="JC.WA.exportCustomersCSV()">📥 导出咨询表</button>
+      </div>
       <div class="search-bar"><input type="text" class="form-input" id="wa-search" placeholder="搜索微信名/联系方式..."></div>
       <div class="filter-bar" id="wa-filter">
         <span class="filter-chip active" data-filter="all">全部</span>
@@ -457,6 +460,41 @@ JC.WA = (() => {
     u.toast('导出完成 ✅');
   }
 
+  // ==================== 导出咨询 CSV ====================
+  async function exportCustomersCSV() {
+    const customers = await JC.Store.waGetCustomers();
+    // 咨询表导出字段（对齐群内实际信息：无联系方式，只有微信名+聊天内容）
+    const headers = ['序号','微信名','微信号/联系方式','计划出行日期','出行天数','人数','意向套餐','意向程度','卡点','状态','首询日期','跟进1','跟进2','跟进3','下次跟进日期','聊天记录'];
+    const rows = customers.map((c, i) => [
+      i+1,
+      c.wechat_name || c.nickname || '',
+      c.contact || '',
+      c.plan_date || c.travel_date || '',
+      c.days || c.travel_days || '',
+      c.people || c.people_count || '',
+      c.product_interest || c.recommended_product || '',
+      c.intent_level || '',
+      c.blocker || '',
+      c.inquiry_status || c.status || '',
+      c.first_inquiry_date || '',
+      c.follow_up_1 || '',
+      c.follow_up_2 || '',
+      c.follow_up_3 || '',
+      c.next_follow_up_date || '',
+      c.chat_history || ''
+    ]);
+    const BOM = '\uFEFF';
+    const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `咨询表-Jaycy-${u.today()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    u.toast('导出完成 ✅');
+  }
+
   // ==================== 手动添加成单（独立，无需关联客户） ====================
   async function addManualDeal() {
     document.querySelector('.overlay')?.remove();
@@ -600,5 +638,5 @@ JC.WA = (() => {
     document.body.appendChild(overlay);
   }
 
-  return { render, showDetail, editCustomer, addFollowUp, convertToDeal, exportDealsCSV, addManualDeal, PRODUCTS, INTENT_LEVELS, ROOM_TYPES, ORDER_STATUS, renderAddCustomerButton };
+  return { render, showDetail, editCustomer, addFollowUp, convertToDeal, exportDealsCSV, exportCustomersCSV, addManualDeal, PRODUCTS, INTENT_LEVELS, ROOM_TYPES, ORDER_STATUS, renderAddCustomerButton };
 })();
