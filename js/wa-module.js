@@ -1,5 +1,6 @@
 // ============================================================
-// Jaycy CRM V3 - 西澳模块（客户管理 / 成单 / 回访 / 通知）
+// Jaycy CRM V3 - 西澳模块（咨询表 / 成单表 / 回访 / 老板通知）
+// 字段完全匹配腾讯文档
 // ============================================================
 window.JC = window.JC || {};
 
@@ -12,20 +13,16 @@ JC.WA = (() => {
     currentView = view;
     container.innerHTML = `
       <div class="filter-bar" id="wa-subnav">
-        <span class="filter-chip ${view === 'customers' ? 'active' : ''}" data-view="customers">客户</span>
-        <span class="filter-chip ${view === 'deals' ? 'active' : ''}" data-view="deals">成单</span>
-        <span class="filter-chip ${view === 'reviews' ? 'active' : ''}" data-view="reviews">回访</span>
-        <span class="filter-chip ${view === 'notices' ? 'active' : ''}" data-view="notices">通知</span>
+        <span class="filter-chip ${view === 'customers' ? 'active' : ''}" data-view="customers">📋 咨询表</span>
+        <span class="filter-chip ${view === 'deals' ? 'active' : ''}" data-view="deals">💰 成单表</span>
+        <span class="filter-chip ${view === 'reviews' ? 'active' : ''}" data-view="reviews">📞 回访</span>
+        <span class="filter-chip ${view === 'notices' ? 'active' : ''}" data-view="notices">🔔 通知</span>
       </div>
       <div id="wa-content"></div>
     `;
 
-    // 子导航绑定
     document.querySelectorAll('#wa-subnav .filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const v = chip.dataset.view;
-        JC.Router.navigate('wa', v);
-      });
+      chip.addEventListener('click', () => JC.Router.navigate('wa', chip.dataset.view));
     });
 
     const content = document.getElementById('wa-content');
@@ -37,29 +34,25 @@ JC.WA = (() => {
     }
   }
 
-  // ==================== 客户列表 ====================
+  // ==================== 咨询表（匹配腾讯文档字段） ====================
   async function renderCustomers(container) {
     container.innerHTML = `
-      <div class="search-bar">
-        <input type="text" class="form-input" id="wa-search" placeholder="搜索昵称/微信/联系方式...">
-      </div>
+      <div class="search-bar"><input type="text" class="form-input" id="wa-search" placeholder="搜索微信名/联系方式..."></div>
       <div class="filter-bar" id="wa-filter">
         <span class="filter-chip active" data-filter="all">全部</span>
-        <span class="filter-chip" data-filter="A">A级</span>
-        <span class="filter-chip" data-filter="B">B级</span>
-        <span class="filter-chip" data-filter="C">C级</span>
+        <span class="filter-chip" data-filter="高">高意向</span>
+        <span class="filter-chip" data-filter="中">中意向</span>
+        <span class="filter-chip" data-filter="低">低意向</span>
         <span class="filter-chip" data-filter="today">今日跟进</span>
         <span class="filter-chip" data-filter="deal">已成交</span>
       </div>
       <div id="wa-list"><div class="loading"><div class="spinner"></div></div></div>
     `;
 
-    // 搜索
     document.getElementById('wa-search').addEventListener('input', u.debounce(async (e) => {
       await loadCustomerList(e.target.value);
     }, 300));
 
-    // 筛选
     document.querySelectorAll('#wa-filter .filter-chip').forEach(chip => {
       chip.addEventListener('click', async () => {
         document.querySelectorAll('#wa-filter .filter-chip').forEach(c => c.classList.remove('active'));
@@ -77,224 +70,169 @@ JC.WA = (() => {
     if (!list) return;
 
     const filters = {};
-    if (currentFilter === 'A') filters.grade = 'A';
-    else if (currentFilter === 'B') filters.grade = 'B';
-    else if (currentFilter === 'C') filters.grade = 'C';
-    else if (currentFilter === 'today') filters.todayFollowUp = true;
-    else if (currentFilter === 'deal') filters.outcome = '成交';
+    if (['高', '中', '低'].includes(currentFilter)) filters.intent = currentFilter;
+    if (currentFilter === 'deal') filters.status = '已成交';
+    if (currentFilter === 'today') filters.todayFollow = true;
     if (search) filters.search = search;
 
     const customers = await JC.Store.waGetCustomers(filters);
 
-    if (customers.length === 0) {
-      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>暂无客户数据</p><p class="text-xs text-muted mt-8">点击底部 + 号录入新客户</p></div>';
+    if (!customers.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>暂无咨询记录</p><p class="text-xs text-muted mt-8">点击底部 + 号 AI 录入新客户</p></div>';
       return;
     }
 
     list.innerHTML = customers.map(c => `
-      <div class="card" onclick="JC.WA.showCustomerDetail('${c.id}')" style="cursor:pointer;">
+      <div class="card" onclick="JC.WA.showDetail('${c.id}')" style="cursor:pointer;">
         <div class="flex-between">
           <div class="flex gap-8" style="align-items:center;">
-            <strong>${u.esc(c.nickname)}</strong>
-            <span class="badge badge-${c.ai_grade || 'D'}">${c.ai_grade || '?'}</span>
-            ${c.status === 'deal' ? '<span class="badge badge-A">已成交</span>' : ''}
+            <strong>${u.esc(c.nickname || c.wechat_name || '未命名')}</strong>
+            <span class="badge" style="background:${c.intent_level === '高' ? 'var(--success-light)' : c.intent_level === '中' ? 'var(--warning-light)' : c.intent_level === '低' ? 'var(--danger-light)' : 'var(--bg)'};color:${c.intent_level === '高' ? 'var(--success)' : c.intent_level === '中' ? 'var(--warning)' : 'var(--danger)'};">
+              ${c.intent_level || '?'}意向
+            </span>
+            ${c.inquiry_status === '已成交' ? '<span class="badge badge-A">已成交</span>' : ''}
           </div>
-          <span class="text-xs text-muted">${c.ai_score || 0}分</span>
+          <span class="text-xs text-muted">${u.formatDate(c.first_inquiry_date)}</span>
         </div>
         <div class="mt-8 flex gap-8 flex-wrap" style="font-size:13px;color:var(--text-secondary);">
-          ${c.travel_date ? `<span>📅 ${u.esc(c.travel_date)}</span>` : ''}
-          ${c.people_count ? `<span>👥 ${u.esc(c.people_count)}人</span>` : ''}
-          ${c.relationship ? `<span>${u.esc(c.relationship)}</span>` : ''}
+          ${c.plan_date ? `<span>📅 ${u.esc(c.plan_date || c.travel_date)}</span>` : ''}
+          ${c.days ? `<span>📆 ${u.esc(c.days)}天</span>` : ''}
+          ${c.people ? `<span>👥 ${u.esc(c.people || c.people_count)}人</span>` : ''}
+          ${c.product_interest ? `<span>📦 ${u.esc(c.product_interest)}</span>` : ''}
         </div>
-        ${c.tags && c.tags.length > 0 ? `
-          <div class="mt-8">${c.tags.map(t => `<span class="tag">${u.esc(t)}</span>`).join('')}</div>
-        ` : ''}
-        ${c.recommended_product ? `
-          <div class="mt-8 text-sm text-primary">📦 推荐: ${u.esc(c.recommended_product)}</div>
-        ` : ''}
-        ${c.next_follow_up_date ? `
-          <div class="mt-8 text-xs ${u.isOverdue(c.next_follow_up_date) ? 'text-danger' : 'text-muted'}">
-            ${u.isOverdue(c.next_follow_up_date) ? '⚠️ 逾期' : '📌'} 跟进: ${u.formatDate(c.next_follow_up_date)}
-          </div>
-        ` : ''}
+        <div class="mt-8 text-sm ${u.isOverdue(c.next_follow_up_date) ? 'text-danger' : 'text-muted'}">
+          ${c.inquiry_status || c.status || ''}
+          ${c.next_follow_up_date ? ' · 下次跟进: ' + u.formatDate(c.next_follow_up_date) : ''}
+        </div>
       </div>
     `).join('');
   }
 
-  // ==================== 客户详情弹窗 ====================
-  async function showCustomerDetail(id) {
-    const customer = await JC.Store.waGetCustomer(id);
-    if (!customer) { u.toast('客户不存在'); return; }
+  // ==================== 客户详情 ====================
+  async function showDetail(id) {
+    const c = await JC.Store.waGetCustomer(id);
+    if (!c) { u.toast('客户不存在'); return; }
 
-    // 获取跟进记录
+    // 检查相关老板通知
+    const relevantNotices = await JC.Store.checkNoticeRelevance(c);
     const logs = await JC.Store.getFollowUpLogs('wa', id);
 
     showOverlay(`
       <div class="overlay-header">
-        <h3>${u.esc(customer.nickname)}</h3>
+        <h3>${u.esc(c.nickname || c.wechat_name || '未命名')}</h3>
         <button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button>
       </div>
       <div class="overlay-body">
-        <!-- 评分 & 等级 -->
+        <!-- 意向 & 状态 -->
         <div class="flex-between mb-16">
           <div>
-            <span class="badge badge-${customer.ai_grade || 'D'}" style="font-size:16px;padding:4px 12px;">${customer.ai_grade || '?'}级</span>
-            <span class="text-sm text-muted ml-8">${customer.ai_score || 0}分</span>
+            <span class="badge" style="background:${c.intent_level === '高' ? 'var(--success-light)' : c.intent_level === '中' ? 'var(--warning-light)' : 'var(--danger-light)'};color:${c.intent_level === '高' ? 'var(--success)' : 'var(--warning)'};font-size:16px;padding:4px 12px;">
+              ${c.intent_level || '?'}意向
+            </span>
           </div>
-          <span class="badge">${u.statusLabel(customer.status, 'wa')}</span>
+          <span class="badge">${u.esc(c.inquiry_status || c.status || '')}</span>
         </div>
 
-        <!-- 基础信息 -->
+        <!-- 相关通知 -->
+        ${relevantNotices.length > 0 ? `
+        <div class="card" style="border:2px solid var(--danger);background:var(--danger-light);margin-bottom:12px;">
+          <div class="font-bold mb-4" style="color:var(--danger);">⚠️ 相关老板通知</div>
+          ${relevantNotices.map(n => `<div class="text-sm">• ${u.esc(n.title)}${n.content ? '：' + u.esc(n.content) : ''}</div>`).join('')}
+        </div>` : ''}
+
+        <!-- 咨询信息（腾讯文档字段） -->
         <div class="card">
-          <div class="card-title mb-12">📋 基础信息</div>
+          <div class="card-title mb-12">📋 咨询信息</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
-            ${infoRow('出行日期', customer.travel_date)}
-            ${infoRow('天数', customer.travel_days)}
-            ${infoRow('人数', customer.people_count)}
-            ${infoRow('关系', customer.relationship)}
-            ${infoRow('预算', customer.budget)}
-            ${infoRow('机票', customer.ticket_status)}
-            ${infoRow('签证', customer.visa_status)}
-            ${infoRow('决策人', customer.decision_maker)}
+            ${kv('首询日期', u.formatDate(c.first_inquiry_date))}
+            ${kv('微信名', c.wechat_name || c.nickname)}
+            ${kv('联系方式', c.contact)}
+            ${kv('计划出行日期', c.plan_date || c.travel_date)}
+            ${kv('天数', c.days || c.travel_days)}
+            ${kv('人数', c.people || c.people_count)}
+            ${kv('意向套餐', c.product_interest || c.recommended_product)}
+            ${kv('状态', c.inquiry_status || c.status)}
+            ${kv('意向程度', c.intent_level)}
           </div>
         </div>
 
-        <!-- 标签 -->
-        ${customer.tags && customer.tags.length > 0 ? `
-          <div class="mb-12">${customer.tags.map(t => `<span class="tag">${u.esc(t)}</span>`).join('')}</div>
-        ` : ''}
+        <!-- 跟进记录（腾讯文档跟进1/2/3） -->
+        ${(c.follow_up_1 || c.follow_up_2 || c.follow_up_3) ? `
+        <div class="card">
+          <div class="card-title mb-8">📝 跟进记录</div>
+          ${c.follow_up_1 ? `<div class="text-sm mb-4" style="padding:8px;background:var(--bg);border-radius:6px;">跟进1: ${u.esc(c.follow_up_1)}</div>` : ''}
+          ${c.follow_up_2 ? `<div class="text-sm mb-4" style="padding:8px;background:var(--bg);border-radius:6px;">跟进2: ${u.esc(c.follow_up_2)}</div>` : ''}
+          ${c.follow_up_3 ? `<div class="text-sm" style="padding:8px;background:var(--bg);border-radius:6px;">跟进3: ${u.esc(c.follow_up_3)}</div>` : ''}
+        </div>` : ''}
 
-        <!-- 顾虑 -->
-        ${customer.concerns && customer.concerns.length > 0 ? `
-          <div class="card">
-            <div class="card-title mb-8">⚠️ 客户顾虑</div>
-            ${customer.concerns.map(c => `<span class="tag" style="background:var(--danger-light);color:var(--danger);">${u.esc(c)}</span>`).join(' ')}
+        <!-- AI 跟进话术 -->
+        ${c.follow_up_script ? `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">💬 AI 跟进话术</span>
+            <button class="btn btn-sm btn-outline" onclick="JC.Utils.copyToClipboard(\`${c.follow_up_script.replace(/`/g,'\\`').replace(/\\/g,'\\\\')}\`)">复制</button>
           </div>
-        ` : ''}
-
-        <!-- 推荐产品 -->
-        ${customer.recommended_product ? `
-          <div class="card">
-            <div class="card-title mb-8">📦 推荐产品</div>
-            <p><strong>${u.esc(customer.recommended_product)}</strong></p>
-            <p class="text-sm text-muted mt-4">${u.esc(customer.recommended_reason || '')}</p>
-          </div>
-        ` : ''}
-
-        <!-- 跟进话术 -->
-        ${customer.follow_up_script ? `
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">💬 跟进话术</span>
-              <button class="btn btn-sm btn-outline" onclick="JC.Utils.copyToClipboard(\`${customer.follow_up_script.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)">复制</button>
-            </div>
-            <p style="white-space:pre-wrap;font-size:14px;">${u.esc(customer.follow_up_script)}</p>
-          </div>
-        ` : ''}
-
-        <!-- 聊天记录 -->
-        ${customer.chat_history ? `
-          <div class="card">
-            <div class="card-title mb-8">📝 聊天记录</div>
-            <p style="white-space:pre-wrap;font-size:13px;color:var(--text-secondary);max-height:200px;overflow-y:auto;">${u.esc(customer.chat_history)}</p>
-          </div>
-        ` : ''}
-
-        <!-- 跟进日志 -->
-        ${logs.length > 0 ? `
-          <div class="card">
-            <div class="card-title mb-8">📜 跟进记录 (${logs.length})</div>
-            ${logs.map(l => `
-              <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
-                <div class="text-xs text-muted">${u.formatDateTime(l.created_at)} ${l.method || ''}</div>
-                <div class="mt-4">${u.esc(l.content)}</div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-
-        <!-- 成单信息 -->
-        ${customer.status === 'deal' ? `
-          <div class="card" style="background:var(--success-light);">
-            <div class="card-title mb-8">✅ 成单详情</div>
-            <div style="font-size:14px;">
-              ${infoRow('产品', customer.deal_product)}
-              ${infoRow('金额', customer.deal_amount)}
-              ${infoRow('日期', customer.deal_date)}
-              ${infoRow('备注', customer.deal_notes)}
-            </div>
-          </div>
-        ` : ''}
+          <p style="white-space:pre-wrap;font-size:14px;">${u.esc(c.follow_up_script)}</p>
+        </div>` : ''}
       </div>
       <div class="overlay-footer">
         <button class="btn btn-outline flex-1" onclick="JC.WA.editCustomer('${id}')">✏️ 编辑</button>
         <button class="btn btn-outline flex-1" onclick="JC.WA.addFollowUp('${id}')">📝 跟进</button>
-        ${customer.status !== 'deal' ? `<button class="btn btn-primary flex-1" onclick="JC.WA.convertToDeal('${id}')">💰 转成单</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="JC.WA.deleteCustomer('${id}')">🗑️</button>
+        ${c.inquiry_status !== '已成交' ? `<button class="btn btn-primary flex-1" onclick="JC.WA.convertToDeal('${id}')">💰 转成单</button>` : ''}
       </div>
     `);
   }
 
-  // ==================== 编辑客户 ====================
+  // ==================== 编辑客户（腾讯文档字段） ====================
   async function editCustomer(id) {
     const c = await JC.Store.waGetCustomer(id);
     if (!c) return;
-
     document.querySelector('.overlay')?.remove();
 
     showOverlay(`
-      <div class="overlay-header">
-        <h3>编辑客户</h3>
-        <button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button>
-      </div>
+      <div class="overlay-header"><h3>编辑客户</h3><button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button></div>
       <div class="overlay-body">
-        <div class="form-group"><label class="form-label">昵称 *</label><input class="form-input" id="edit-nickname" value="${u.esc(c.nickname)}"></div>
-        <div class="form-group"><label class="form-label">联系方式</label><input class="form-input" id="edit-contact" value="${u.esc(c.contact || '')}"></div>
-        <div class="form-group"><label class="form-label">微信号</label><input class="form-input" id="edit-wechat" value="${u.esc(c.wechat_id || '')}"></div>
-        <div class="form-group"><label class="form-label">出行日期</label><input class="form-input" id="edit-travel-date" value="${u.esc(c.travel_date || '')}" placeholder="如 2026.8.1"></div>
-        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="edit-people" value="${u.esc(c.people_count || '')}"></div>
-        <div class="form-group"><label class="form-label">关系</label>
-          <select class="form-select" id="edit-relationship">
-            ${['','家庭游','亲子游','情侣游','夫妻游','朋友游','独自出行'].map(o => `<option ${c.relationship === o ? 'selected' : ''}>${o}</option>`).join('')}
+        <div class="form-group"><label class="form-label">微信名 *</label><input class="form-input" id="e-nickname" value="${u.esc(c.wechat_name || c.nickname || '')}"></div>
+        <div class="form-group"><label class="form-label">联系方式</label><input class="form-input" id="e-contact" value="${u.esc(c.contact || '')}"></div>
+        <div class="form-group"><label class="form-label">首询日期</label><input class="form-input" type="date" id="e-first-date" value="${c.first_inquiry_date || ''}"></div>
+        <div class="form-group"><label class="form-label">计划出行日期</label><input class="form-input" id="e-plan-date" value="${u.esc(c.plan_date || c.travel_date || '')}" placeholder="如 2026.8.1"></div>
+        <div class="form-group"><label class="form-label">天数</label><input class="form-input" id="e-days" value="${u.esc(c.days || c.travel_days || '')}"></div>
+        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="e-people" value="${u.esc(c.people || c.people_count || '')}"></div>
+        <div class="form-group"><label class="form-label">意向套餐</label><input class="form-input" id="e-product" value="${u.esc(c.product_interest || c.recommended_product || '')}"></div>
+        <div class="form-group"><label class="form-label">状态</label>
+          <select class="form-select" id="e-status">
+            ${['','咨询中','已报价','考虑中','后续无回复','无回复','已成交','已流失'].map(o => `<option ${(c.inquiry_status || c.status) === o ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>
-        <div class="form-group"><label class="form-label">预算</label>
-          <select class="form-select" id="edit-budget">
-            ${['','经济型','性价比型','舒适型','高端型'].map(o => `<option ${c.budget === o ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
+        <div class="form-group"><label class="form-label">意向程度</label>
+          <select class="form-select" id="e-intent">${['','高','中','低'].map(o => `<option ${c.intent_level === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
         </div>
-        <div class="form-group"><label class="form-label">机票状态</label>
-          <select class="form-select" id="edit-ticket">${['','已购买','正在购买','未购买'].map(o => `<option ${c.ticket_status === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>
-        <div class="form-group"><label class="form-label">签证状态</label>
-          <select class="form-select" id="edit-visa">${['','已办理','办理中','未办理'].map(o => `<option ${c.visa_status === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>
-        <div class="form-group"><label class="form-label">AI 评分</label><input class="form-input" type="number" id="edit-score" value="${c.ai_score || 0}" min="0" max="100"></div>
-        <div class="form-group"><label class="form-label">下次跟进日期</label><input class="form-input" type="date" id="edit-follow-up" value="${c.next_follow_up_date || ''}"></div>
-        <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="edit-notes">${u.esc(c.notes || '')}</textarea></div>
+        <div class="form-group"><label class="form-label">跟进-1</label><textarea class="form-textarea" id="e-fu1" style="min-height:60px;">${u.esc(c.follow_up_1 || '')}</textarea></div>
+        <div class="form-group"><label class="form-label">跟进-2</label><textarea class="form-textarea" id="e-fu2" style="min-height:60px;">${u.esc(c.follow_up_2 || '')}</textarea></div>
+        <div class="form-group"><label class="form-label">跟进-3</label><textarea class="form-textarea" id="e-fu3" style="min-height:60px;">${u.esc(c.follow_up_3 || '')}</textarea></div>
+        <div class="form-group"><label class="form-label">下次跟进日期</label><input class="form-input" type="date" id="e-next-fu" value="${c.next_follow_up_date || ''}"></div>
       </div>
-      <div class="overlay-footer">
-        <button class="btn btn-primary btn-block" id="btn-save-edit">💾 保存修改</button>
-      </div>
+      <div class="overlay-footer"><button class="btn btn-primary btn-block" id="btn-save">💾 保存</button></div>
     `);
 
-    document.getElementById('btn-save-edit').addEventListener('click', async () => {
-      const updates = {
-        id: c.id,
-        nickname: document.getElementById('edit-nickname').value.trim(),
-        contact: document.getElementById('edit-contact').value.trim(),
-        wechat_id: document.getElementById('edit-wechat').value.trim(),
-        travel_date: document.getElementById('edit-travel-date').value.trim(),
-        people_count: document.getElementById('edit-people').value.trim(),
-        relationship: document.getElementById('edit-relationship').value,
-        budget: document.getElementById('edit-budget').value,
-        ticket_status: document.getElementById('edit-ticket').value,
-        visa_status: document.getElementById('edit-visa').value,
-        ai_score: parseInt(document.getElementById('edit-score').value) || 0,
-        next_follow_up_date: document.getElementById('edit-follow-up').value,
-        notes: document.getElementById('edit-notes').value,
-      };
-      await JC.Store.waSaveCustomer(updates);
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      await JC.Store.waSaveCustomer({
+        id, wechat_name: document.getElementById('e-nickname').value.trim(),
+        nickname: document.getElementById('e-nickname').value.trim(),
+        contact: document.getElementById('e-contact').value.trim(),
+        first_inquiry_date: document.getElementById('e-first-date').value,
+        plan_date: document.getElementById('e-plan-date').value.trim(),
+        travel_date: document.getElementById('e-plan-date').value.trim(),
+        days: document.getElementById('e-days').value.trim(),
+        people: document.getElementById('e-people').value.trim(),
+        product_interest: document.getElementById('e-product').value.trim(),
+        inquiry_status: document.getElementById('e-status').value,
+        intent_level: document.getElementById('e-intent').value,
+        follow_up_1: document.getElementById('e-fu1').value,
+        follow_up_2: document.getElementById('e-fu2').value,
+        follow_up_3: document.getElementById('e-fu3').value,
+        next_follow_up_date: document.getElementById('e-next-fu').value,
+      });
       document.querySelector('.overlay')?.remove();
       u.toast('已保存 ✅');
       JC.Router.renderPage();
@@ -305,47 +243,37 @@ JC.WA = (() => {
   async function addFollowUp(id) {
     document.querySelector('.overlay')?.remove();
     const c = await JC.Store.waGetCustomer(id);
+    const existingFu = [c.follow_up_1, c.follow_up_2, c.follow_up_3].filter(Boolean);
 
     showOverlay(`
-      <div class="overlay-header">
-        <h3>添加跟进记录</h3>
-        <button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button>
-      </div>
+      <div class="overlay-header"><h3>添加跟进 - ${u.esc(c.wechat_name || c.nickname)}</h3><button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button></div>
       <div class="overlay-body">
-        <p class="text-sm text-muted mb-12">客户: ${u.esc(c.nickname)}</p>
-        <div class="form-group">
-          <label class="form-label">跟进方式</label>
-          <select class="form-select" id="fu-method">
-            <option>微信</option><option>电话</option><option>群消息</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">跟进内容</label>
-          <textarea class="form-textarea" id="fu-content" placeholder="记录本次跟进内容..."></textarea>
-        </div>
+        ${existingFu.length > 0 ? `<div class="text-sm text-muted mb-12">已有 ${existingFu.length} 条跟进记录</div>` : ''}
+        <div class="form-group"><label class="form-label">跟进内容</label><textarea class="form-textarea" id="fu-content" placeholder="记录本次跟进内容..."></textarea></div>
+        <div class="form-group"><label class="form-label">下次跟进日期</label><input class="form-input" type="date" id="fu-next-date"></div>
       </div>
-      <div class="overlay-footer">
-        <button class="btn btn-primary btn-block" id="btn-save-fu">💾 保存</button>
-      </div>
+      <div class="overlay-footer"><button class="btn btn-primary btn-block" id="btn-save-fu">💾 保存</button></div>
     `);
 
     document.getElementById('btn-save-fu').addEventListener('click', async () => {
       const content = document.getElementById('fu-content').value.trim();
-      const method = document.getElementById('fu-method').value;
       if (!content) { u.toast('请输入跟进内容'); return; }
 
-      await JC.Store.addFollowUpLog({
-        module_code: 'wa',
-        customer_id: id,
-        content,
-        method,
-      });
+      // 自动填入下一个空白的跟进字段
+      const updates = { id };
+      if (!c.follow_up_1) updates.follow_up_1 = content;
+      else if (!c.follow_up_2) updates.follow_up_2 = content;
+      else updates.follow_up_3 = content;
 
-      // 更新最后联系日期
-      await JC.Store.waSaveCustomer({ id, last_contact_date: u.today() });
+      const nextDate = document.getElementById('fu-next-date').value;
+      if (nextDate) updates.next_follow_up_date = nextDate;
+
+      await JC.Store.waSaveCustomer(updates);
+      await JC.Store.addFollowUpLog({ module_code: 'wa', customer_id: id, content, method: '微信' });
 
       document.querySelector('.overlay')?.remove();
       u.toast('跟进已记录 ✅');
+      JC.Router.renderPage();
     });
   }
 
@@ -355,52 +283,46 @@ JC.WA = (() => {
     const c = await JC.Store.waGetCustomer(id);
 
     showOverlay(`
-      <div class="overlay-header">
-        <h3>💰 转成单</h3>
-        <button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button>
-      </div>
+      <div class="overlay-header"><h3>💰 转成单 - ${u.esc(c.wechat_name || c.nickname)}</h3><button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button></div>
       <div class="overlay-body">
-        <p class="text-sm text-muted mb-12">客户: ${u.esc(c.nickname)}</p>
-        <div class="form-group"><label class="form-label">产品名称 *</label><input class="form-input" id="deal-product" value="${u.esc(c.recommended_product || '')}"></div>
-        <div class="form-group"><label class="form-label">成单金额</label><input class="form-input" id="deal-amount" placeholder="如 3888澳元"></div>
-        <div class="form-group"><label class="form-label">成单日期</label><input class="form-input" type="date" id="deal-date" value="${u.today()}"></div>
-        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="deal-people" value="${u.esc(c.people_count || '')}"></div>
-        <div class="form-group"><label class="form-label">付款状态</label>
-          <select class="form-select" id="deal-payment">
-            <option>定金已付</option><option>全款已付</option><option>未付款</option>
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="deal-notes"></textarea></div>
+        <div class="form-group"><label class="form-label">产品名称 *</label><input class="form-input" id="d-product" value="${u.esc(c.product_interest || c.recommended_product || '')}"></div>
+        <div class="form-group"><label class="form-label">客户信息（姓名+性别）</label><input class="form-input" id="d-customer-info" value="${u.esc(c.wechat_name || c.nickname || '')}"></div>
+        <div class="form-group"><label class="form-label">联系方式</label><input class="form-input" id="d-contact" value="${u.esc(c.contact || '')}"></div>
+        <div class="form-group"><label class="form-label">出行日期</label><input class="form-input" id="d-travel-date" value="${u.esc(c.plan_date || c.travel_date || '')}"></div>
+        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="d-people" value="${u.esc(c.people || c.people_count || '')}"></div>
+        <div class="form-group"><label class="form-label">房型</label><input class="form-input" id="d-room" placeholder="大床房/双床房/单人间"></div>
+        <div class="form-group"><label class="form-label">总价（AUD）</label><input class="form-input" id="d-price" placeholder="如 1198"></div>
+        <div class="form-group"><label class="form-label">付款方式</label><input class="form-input" id="d-pay-method" placeholder="微信转账/澳币转账"></div>
+        <div class="form-group"><label class="form-label">付款状态</label><input class="form-input" id="d-pay-status" placeholder="全款/定金+尾款"></div>
+        <div class="form-group"><label class="form-label">下单日期 *</label><input class="form-input" type="date" id="d-order-date" value="${u.today()}"><div class="text-xs text-muted mt-4">⚠️ 提成按下单日期计算，27号为月结算分割线</div></div>
+        <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="d-notes" style="min-height:60px;"></textarea></div>
       </div>
-      <div class="overlay-footer">
-        <button class="btn btn-primary btn-block" id="btn-save-deal">✅ 确认成单</button>
-      </div>
+      <div class="overlay-footer"><button class="btn btn-primary btn-block" id="btn-save-deal">✅ 确认成单</button></div>
     `);
 
     document.getElementById('btn-save-deal').addEventListener('click', async () => {
-      const product = document.getElementById('deal-product').value.trim();
+      const product = document.getElementById('d-product').value.trim();
       if (!product) { u.toast('请输入产品名称'); return; }
+      const orderDate = document.getElementById('d-order-date').value;
 
-      // 创建成单记录
       await JC.Store.waSaveDeal({
         customer_id: id,
         product_name: product,
-        total_amount: document.getElementById('deal-amount').value.trim(),
-        travel_date: document.getElementById('deal-date').value,
-        people_count: parseInt(document.getElementById('deal-people').value) || 0,
-        payment_status: document.getElementById('deal-payment').value,
-        notes: document.getElementById('deal-notes').value,
+        order_date: orderDate,
+        customer_info: document.getElementById('d-customer-info').value.trim(),
+        contact_info: document.getElementById('d-contact').value.trim(),
+        travel_date: document.getElementById('d-travel-date').value.trim(),
+        people_count: parseInt(document.getElementById('d-people').value) || 0,
+        room_type: document.getElementById('d-room').value.trim(),
+        total_amount: document.getElementById('d-price').value.trim(),
+        payment_method: document.getElementById('d-pay-method').value.trim(),
+        payment_status: document.getElementById('d-pay-status').value.trim(),
+        notes: document.getElementById('d-notes').value,
+        agent_name: 'Jaycy',
+        group_date: c.first_inquiry_date || u.today(),
       });
 
-      // 更新客户状态
-      await JC.Store.waSaveCustomer({
-        id,
-        status: 'deal',
-        outcome: '成交',
-        deal_product: product,
-        deal_amount: document.getElementById('deal-amount').value.trim(),
-        deal_date: document.getElementById('deal-date').value,
-      });
+      await JC.Store.waSaveCustomer({ id, inquiry_status: '已成交', intent_level: '高' });
 
       document.querySelector('.overlay')?.remove();
       u.toast('成单已记录 🎉');
@@ -408,146 +330,153 @@ JC.WA = (() => {
     });
   }
 
-  // ==================== 删除客户 ====================
-  async function deleteCustomer(id) {
-    if (confirm('确定要删除这个客户吗？此操作不可撤销。')) {
-      await JC.Store.waDeleteCustomer(id);
-      document.querySelector('.overlay')?.remove();
-      u.toast('已删除');
-      JC.Router.renderPage();
-    }
-  }
-
-  // ==================== 成单列表 ====================
+  // ==================== 成单表 ====================
   async function renderDeals(container) {
     container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     const deals = await JC.Store.waGetDeals();
 
-    if (deals.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>暂无成单记录</p></div>';
-      return;
+    // 按结算月份分组
+    const groups = {};
+    for (const d of deals) {
+      const month = d.settlement_month || '未分类';
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(d);
     }
 
-    // 汇总
-    const totalAmount = deals.reduce((sum, d) => {
+    const sortedMonths = Object.keys(groups).sort().reverse();
+
+    let totalAmount = 0;
+    deals.forEach(d => {
       const num = parseFloat(d.total_amount?.replace(/[^0-9.]/g, ''));
-      return sum + (isNaN(num) ? 0 : num);
-    }, 0);
+      if (!isNaN(num)) totalAmount += num;
+    });
 
     container.innerHTML = `
-      <div class="card" style="background:var(--success-light);text-align:center;">
+      <div class="card" style="background:var(--success-light);text-align:center;margin-bottom:16px;">
         <div class="stat-number" style="color:var(--success);">${deals.length}</div>
-        <div class="stat-label">总成单数</div>
-        ${totalAmount > 0 ? `<div class="text-sm text-muted mt-4">累计金额: ${totalAmount.toLocaleString()}</div>` : ''}
+        <div class="stat-label">总成单数 · 累计 ${totalAmount.toLocaleString()} AUD</div>
+        <button class="btn btn-outline btn-sm mt-8" onclick="JC.WA.exportDealsCSV()">📥 导出成单表</button>
       </div>
-      ${deals.map(d => `
-        <div class="card">
-          <div class="flex-between">
-            <strong>${u.esc(d.product_name)}</strong>
-            <span class="badge badge-A">${u.esc(d.payment_status || '')}</span>
+      ${sortedMonths.map(month => `
+        <div style="margin-bottom:8px;">
+          <div style="background:var(--primary);color:#fff;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:8px;">
+            📅 ${month} · ${groups[month].length}单
           </div>
-          <div class="mt-8 text-sm text-muted">
-            ${d.total_amount ? `<span>💰 ${u.esc(d.total_amount)}</span>` : ''}
-            ${d.people_count ? `<span class="ml-8">👥 ${d.people_count}人</span>` : ''}
-          </div>
-          <div class="mt-4 text-xs text-muted">📅 ${u.formatDate(d.created_at)}</div>
+          ${groups[month].map(d => `
+            <div class="card" style="margin-bottom:8px;">
+              <div class="flex-between">
+                <strong style="font-size:14px;">${u.esc(d.product_name)}</strong>
+                <span class="badge badge-A">${d.settlement_month || ''}</span>
+              </div>
+              <div class="mt-8 text-sm text-muted">
+                ${d.customer_info ? `<span>👤 ${u.esc(u.truncate(d.customer_info, 20))}</span>` : ''}
+                ${d.people_count ? `<span class="ml-8">👥 ${d.people_count}人</span>` : ''}
+                ${d.total_amount ? `<span class="ml-8">💰 ${u.esc(d.total_amount)} AUD</span>` : ''}
+              </div>
+              <div class="mt-4 flex gap-8 text-xs">
+                ${d.order_date ? `<span style="color:var(--primary);">📅 下单: ${u.formatDate(d.order_date)}</span>` : '<span style="color:var(--danger);">⚠️ 未填写下单日期</span>'}
+                ${d.travel_date ? `<span class="text-muted">出行: ${u.esc(d.travel_date)}</span>` : ''}
+                ${d.payment_status ? `<span class="text-muted">${u.esc(u.truncate(d.payment_status, 15))}</span>` : ''}
+              </div>
+            </div>
+          `).join('')}
         </div>
       `).join('')}
     `;
   }
 
+  // ==================== 导出成单 CSV ====================
+  async function exportDealsCSV() {
+    const deals = await JC.Store.waGetDeals();
+    const headers = ['序号','接单号','订单状态','拉群日期','下单时间','出行日期','产品','结束日期','客户信息','联系方式','人数','房型','总价AUD','付款方式','付款状态','尾款日期','备注','评价','结算月份'];
+    const rows = deals.map((d, i) => [
+      i+1, d.agent_name || 'Jaycy', '已完成', d.group_date || '', d.order_date || '',
+      d.travel_date || '', d.product_name, d.end_date || '', d.customer_info || '', d.contact_info || '',
+      d.people_count || '', d.room_type || '', d.total_amount || '', d.payment_method || '',
+      d.payment_status || '', d.final_payment_date || '', d.notes || '', d.review || '', d.settlement_month || ''
+    ]);
+    const BOM = '\uFEFF';
+    const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `成单表-Jaycy-${u.today()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    u.toast('导出完成 ✅');
+  }
+
   // ==================== 回访提醒 ====================
   async function renderReviews(container) {
     container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-    const customers = await JC.Store.waGetCustomers({ todayFollowUp: true });
-    const overdue = await JC.Store.waGetCustomers();
-
-    const overdueList = overdue.filter(c => {
-      return c.next_follow_up_date && u.isOverdue(c.next_follow_up_date) && c.status !== 'deal' && c.status !== 'lost';
-    });
+    const customers = await JC.Store.waGetCustomers();
+    const todayFollow = customers.filter(c => c.next_follow_up_date === u.today());
+    const overdue = customers.filter(c => c.next_follow_up_date && u.isOverdue(c.next_follow_up_date) && c.inquiry_status !== '已成交');
 
     container.innerHTML = `
       <div class="card">
-        <div class="card-title mb-8">📌 今日回访 (${customers.length})</div>
-        ${customers.length === 0 ? '<p class="text-sm text-muted">今天没有需要回访的客户</p>' :
-          customers.map(c => `
+        <div class="card-title mb-8">📌 今日回访 (${todayFollow.length})</div>
+        ${!todayFollow.length ? '<p class="text-sm text-muted">今天没有需要回访的客户 👍</p>' :
+          todayFollow.map(c => `
             <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);">
-              <div>
-                <strong>${u.esc(c.nickname)}</strong>
-                <span class="badge badge-${c.ai_grade || 'D'} ml-8">${c.ai_grade || '?'}</span>
-              </div>
-              <button class="btn btn-sm btn-outline" onclick="JC.WA.showCustomerDetail('${c.id}')">查看</button>
+              <div><strong>${u.esc(c.wechat_name || c.nickname)}</strong><span class="badge ml-8">${c.intent_level || '?'}意向</span></div>
+              <button class="btn btn-sm btn-outline" onclick="JC.WA.showDetail('${c.id}')">查看</button>
             </div>
-          `).join('')
-        }
+          `).join('')}
       </div>
-
       <div class="card">
-        <div class="card-title mb-8">⚠️ 逾期未跟进 (${overdueList.length})</div>
-        ${overdueList.length === 0 ? '<p class="text-sm text-muted">没有逾期的客户 👍</p>' :
-          overdueList.slice(0, 10).map(c => `
+        <div class="card-title mb-8" style="color:var(--danger);">⚠️ 逾期未跟进 (${overdue.length})</div>
+        ${!overdue.length ? '<p class="text-sm text-muted">没有逾期的客户 👍</p>' :
+          overdue.slice(0, 20).map(c => `
             <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border);">
-              <div>
-                <strong>${u.esc(c.nickname)}</strong>
-                <span class="text-xs text-danger ml-8">逾期: ${u.formatDate(c.next_follow_up_date)}</span>
-              </div>
-              <button class="btn btn-sm btn-outline" onclick="JC.WA.showCustomerDetail('${c.id}')">查看</button>
+              <div><strong>${u.esc(c.wechat_name || c.nickname)}</strong><span class="text-xs text-danger ml-8">逾期: ${u.formatDate(c.next_follow_up_date)}</span></div>
+              <button class="btn btn-sm btn-outline" onclick="JC.WA.showDetail('${c.id}')">查看</button>
             </div>
-          `).join('')
-        }
+          `).join('')}
       </div>
     `;
   }
 
-  // ==================== 通知管理 ====================
+  // ==================== 老板通知管理 ====================
   async function renderNotices(container) {
     const notices = await JC.Store.waGetNotices();
 
     container.innerHTML = `
       <button class="btn btn-primary btn-block mb-16" id="btn-add-notice">➕ 添加通知</button>
-      ${notices.length === 0 ? '<div class="empty-state"><p>暂无老板通知</p></div>' :
+      ${!notices.length ? '<div class="empty-state"><p>暂无通知</p></div>' :
         notices.map(n => `
-          <div class="card">
+          <div class="card" style="border-left:4px solid ${n.type === 'discount' ? 'var(--success)' : 'var(--danger)'};">
             <div class="flex-between">
               <div>
-                <span class="badge badge-${n.type === 'discount' ? 'A' : 'C'}">${n.type === 'discount' ? '折扣' : '房态'}</span>
+                <span class="badge" style="background:${n.type === 'discount' ? 'var(--success-light)' : 'var(--danger-light)'};color:${n.type === 'discount' ? 'var(--success)' : 'var(--danger)'};">
+                  ${n.type === 'discount' ? '折扣' : n.type === 'room_status' ? '房态' : '通知'}
+                </span>
                 <strong class="ml-8">${u.esc(n.title)}</strong>
               </div>
-              <span class="text-xs ${n.is_active ? 'text-success' : 'text-muted'}">${n.is_active ? '生效中' : '已失效'}</span>
+              <button class="btn btn-sm btn-ghost" onclick="JC.Store.waDismissNotice('${n.id}').then(()=>JC.Router.renderPage())">归档</button>
             </div>
             ${n.content ? `<p class="text-sm text-muted mt-8">${u.esc(n.content)}</p>` : ''}
-            ${n.valid_from ? `<div class="text-xs text-muted mt-4">有效期: ${u.formatDate(n.valid_from)} ~ ${u.formatDate(n.valid_to)}</div>` : ''}
           </div>
-        `).join('')
-      }
+        `).join('')}
     `;
 
     document.getElementById('btn-add-notice')?.addEventListener('click', () => {
       showOverlay(`
-        <div class="overlay-header">
-          <h3>添加通知</h3>
-          <button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button>
-        </div>
+        <div class="overlay-header"><h3>添加老板通知</h3><button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button></div>
         <div class="overlay-body">
           <div class="form-group"><label class="form-label">类型</label>
-            <select class="form-select" id="notice-type"><option value="room_status">房态</option><option value="discount">折扣</option><option value="other">其他</option></select>
+            <select class="form-select" id="n-type"><option value="room_status">房态</option><option value="discount">折扣</option><option value="other">其他</option></select>
           </div>
-          <div class="form-group"><label class="form-label">标题 *</label><input class="form-input" id="notice-title" placeholder="如：7月无双床房"></div>
-          <div class="form-group"><label class="form-label">内容</label><textarea class="form-textarea" id="notice-content"></textarea></div>
+          <div class="form-group"><label class="form-label">标题 *</label><input class="form-input" id="n-title" placeholder="如：7月15日粉湖无双床房"></div>
+          <div class="form-group"><label class="form-label">内容</label><textarea class="form-textarea" id="n-content" placeholder="老板具体说了什么..."></textarea></div>
         </div>
-        <div class="overlay-footer">
-          <button class="btn btn-primary btn-block" id="btn-save-notice">保存</button>
-        </div>
+        <div class="overlay-footer"><button class="btn btn-primary btn-block" id="btn-save-notice">保存</button></div>
       `);
-
       document.getElementById('btn-save-notice').addEventListener('click', async () => {
-        const title = document.getElementById('notice-title').value.trim();
+        const title = document.getElementById('n-title').value.trim();
         if (!title) { u.toast('请输入标题'); return; }
-        await JC.Store.waSaveNotice({
-          type: document.getElementById('notice-type').value,
-          title,
-          content: document.getElementById('notice-content').value,
-        });
+        await JC.Store.waSaveNotice({ type: document.getElementById('n-type').value, title, content: document.getElementById('n-content').value });
         document.querySelector('.overlay')?.remove();
         u.toast('已添加 ✅');
         JC.Router.renderPage();
@@ -556,23 +485,20 @@ JC.WA = (() => {
   }
 
   // ==================== 工具 ====================
-  function infoRow(label, value) {
+  function kv(label, value) {
     if (!value) return '';
     return `<div><span class="text-muted">${label}:</span> ${u.esc(String(value))}</div>`;
   }
 
-  function showOverlay(innerHTML) {
+  function showOverlay(html) {
     const existing = document.querySelector('.overlay');
     if (existing) existing.remove();
-
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="overlay-content">${innerHTML}</div>`;
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.remove();
-    });
+    overlay.innerHTML = `<div class="overlay-content">${html}</div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
   }
 
-  return { render, showCustomerDetail, editCustomer, addFollowUp, convertToDeal, deleteCustomer };
+  return { render, showDetail, editCustomer, addFollowUp, convertToDeal, exportDealsCSV };
 })();

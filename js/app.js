@@ -100,7 +100,7 @@ JC.App = (() => {
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;padding:20px;">
         <div style="font-size:48px;margin-bottom:16px;">🗃️</div>
         <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;color:var(--primary)">Jaycy CRM V3</h2>
-        <p style="color:var(--text-secondary);margin-bottom:32px;text-align:center;font-size:14px;">双工作统一管理 · 玩转西澳 + 小羚不卷</p>
+        <p style="color:var(--text-secondary);margin-bottom:32px;text-align:center;font-size:14px;">西澳客户管理 · 小羚提醒 · AI 驱动</p>
 
         <div id="auth-form" style="width:100%;max-width:320px;">
           <div class="form-group">

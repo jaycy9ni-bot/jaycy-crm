@@ -1,5 +1,5 @@
 // ============================================================
-// Jaycy CRM V3 - 数据层（Supabase CRUD + localStorage 离线缓存）
+// Jaycy CRM V3 - 数据层（匹配腾讯文档字段）
 // ============================================================
 window.JC = window.JC || {};
 
@@ -7,18 +7,17 @@ JC.Store = (() => {
   const client = () => JC.Supabase.getClient();
   const u = JC.Utils;
 
-  // ==================== 西澳客户 ====================
+  // ==================== 西澳客户（对应腾讯文档咨询表） ====================
   async function waGetCustomers(filters = {}) {
     let query = client().from('wa_customers').select('*');
-    if (filters.grade) query = query.eq('ai_grade', filters.grade);
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.outcome) query = query.eq('outcome', filters.outcome);
-    if (filters.search) query = query.or(`nickname.ilike.%${filters.search}%,contact.ilike.%${filters.search}%,wechat_id.ilike.%${filters.search}%`);
-    if (filters.todayFollowUp) query = query.eq('next_follow_up_date', u.today());
-    query = query.order('ai_score', { ascending: false });
+    if (filters.intent) query = query.eq('intent_level', filters.intent);
+    if (filters.status) query = query.eq('inquiry_status', filters.status);
+    if (filters.search) query = query.or(`nickname.ilike.%${filters.search}%,wechat_name.ilike.%${filters.search}%,contact.ilike.%${filters.search}%`);
+    if (filters.todayFollow) query = query.eq('next_follow_up_date', u.today());
+    query = query.order('first_inquiry_date', { ascending: false });
     const { data, error } = await query;
     if (error) { console.error(error); return []; }
-    return data;
+    return data || [];
   }
 
   async function waGetCustomer(id) {
@@ -38,18 +37,33 @@ JC.Store = (() => {
     return await client().from('wa_customers').delete().eq('id', id);
   }
 
-  async function waGetDeals() {
-    const { data } = await client().from('wa_deals').select('*').order('created_at', { ascending: false });
+  // ==================== 成单（对应腾讯文档成单表） ====================
+  async function waGetDeals(filters = {}) {
+    let query = client().from('wa_deals').select('*');
+    if (filters.settlementMonth) query = query.eq('settlement_month', filters.settlementMonth);
+    query = query.order('order_date', { ascending: false }).order('created_at', { ascending: false });
+    const { data } = await query;
     return data || [];
   }
 
   async function waSaveDeal(deal) {
+    // 自动计算结算月份
+    if (deal.order_date) {
+      const d = new Date(deal.order_date);
+      if (d.getDate() < 27) {
+        deal.settlement_month = `${d.getFullYear()}年${d.getMonth()+1}月`;
+      } else {
+        const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        deal.settlement_month = `${next.getFullYear()}年${next.getMonth()+1}月`;
+      }
+    }
     if (deal.id) {
       return await client().from('wa_deals').update(deal).eq('id', deal.id);
     }
     return await client().from('wa_deals').insert(deal);
   }
 
+  // ==================== 老板通知 ====================
   async function waGetNotices() {
     const { data } = await client().from('wa_notices').select('*').eq('is_active', true).order('created_at', { ascending: false });
     return data || [];
@@ -59,65 +73,41 @@ JC.Store = (() => {
     return await client().from('wa_notices').insert(notice);
   }
 
-  async function waUpdateNotice(id, updates) {
-    return await client().from('wa_notices').update(updates).eq('id', id);
+  async function waDismissNotice(id) {
+    return await client().from('wa_notices').update({ is_active: false }).eq('id', id);
   }
 
-  // ==================== 小羚线索 ====================
-  async function xlGetLeads(filters = {}) {
-    let query = client().from('xl_leads').select('*');
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.formFilled !== undefined) query = query.eq('form_filled', filters.formFilled);
-    if (filters.groupAdded !== undefined) query = query.eq('group_added', filters.groupAdded);
-    if (filters.search) query = query.or(`nickname.ilike.%${filters.search}%,contact.ilike.%${filters.search}%,wechat_id.ilike.%${filters.search}%`);
-    query = query.order('created_at', { ascending: false });
-    const { data, error } = await query;
-    if (error) { console.error(error); return []; }
-    return data;
+  // 检测客户是否受到通知影响
+  async function checkNoticeRelevance(customer) {
+    const notices = await waGetNotices();
+    return notices.filter(n => {
+      // 产品匹配
+      if (customer.recommended_product && n.title.includes(customer.recommended_product)) return true;
+      if (customer.product_interest && n.title.includes(customer.product_interest)) return true;
+      // 日期匹配
+      if (customer.travel_date && n.title.includes(customer.travel_date)) return true;
+      return false;
+    });
   }
 
-  async function xlGetLead(id) {
-    const { data } = await client().from('xl_leads').select('*').eq('id', id).single();
-    return data;
-  }
-
-  async function xlSaveLead(lead) {
-    if (lead.id) {
-      lead.updated_at = new Date().toISOString();
-      return await client().from('xl_leads').update(lead).eq('id', lead.id);
-    }
-    return await client().from('xl_leads').insert(lead);
-  }
-
-  async function xlDeleteLead(id) {
-    return await client().from('xl_leads').delete().eq('id', id);
-  }
-
-  // ==================== 任务 ====================
+  // ==================== 任务 & 提醒 ====================
   async function getTasks(filters = {}) {
     let query = client().from('tasks').select('*');
     if (filters.moduleCode) query = query.eq('module_code', filters.moduleCode);
     if (filters.status) query = query.eq('status', filters.status);
-    if (filters.dueDate) query = query.eq('due_date', filters.dueDate);
     if (filters.today) query = query.eq('due_date', u.today());
-    query = query.order('due_time', { ascending: true }).order('priority', { ascending: true });
+    query = query.order('due_time', { ascending: true });
     const { data } = await query;
     return data || [];
   }
 
   async function saveTask(task) {
-    if (task.id) {
-      return await client().from('tasks').update(task).eq('id', task.id);
-    }
+    if (task.id) return await client().from('tasks').update(task).eq('id', task.id);
     return await client().from('tasks').insert(task);
   }
 
   async function completeTask(id) {
-    return await client().from('tasks').update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }).eq('id', id);
+    return await client().from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
   }
 
   // ==================== 跟进记录 ====================
@@ -127,74 +117,47 @@ JC.Store = (() => {
 
   async function getFollowUpLogs(moduleCode, customerId) {
     const { data } = await client().from('follow_up_logs').select('*')
-      .eq('module_code', moduleCode)
-      .eq('customer_id', customerId)
+      .eq('module_code', moduleCode).eq('customer_id', customerId)
       .order('created_at', { ascending: false });
     return data || [];
   }
 
-  // ==================== 模板 ====================
-  async function getTemplates(moduleCode) {
-    const { data } = await client().from('reply_templates').select('*')
-      .eq('module_code', moduleCode)
-      .order('category').order('usage_count', { ascending: false });
-    return data || [];
-  }
-
-  async function saveTemplate(tmpl) {
-    if (tmpl.id) {
-      return await client().from('reply_templates').update(tmpl).eq('id', tmpl.id);
-    }
-    return await client().from('reply_templates').insert(tmpl);
-  }
-
-  async function incrementTemplateUsage(id) {
-    // 增加使用计数
-    const { data } = await client().from('reply_templates').select('usage_count').eq('id', id).single();
-    if (data) {
-      await client().from('reply_templates').update({ usage_count: (data.usage_count || 0) + 1 }).eq('id', id);
-    }
-  }
-
   // ==================== 统计 ====================
   async function getDashboardStats() {
-    const [waAll, waDeals, waLost, waAB, xlAll, xlConverted, tasksToday, notices] = await Promise.all([
-      client().from('wa_customers').select('id,ai_grade,status', { count: 'exact', head: true }),
-      client().from('wa_customers').select('id', { count: 'exact', head: true }).eq('status', 'deal'),
-      client().from('wa_customers').select('id', { count: 'exact', head: true }).eq('status', 'lost'),
-      client().from('wa_customers').select('id', { count: 'exact', head: true }).in('ai_grade', ['A', 'B']),
-      client().from('xl_leads').select('id,status', { count: 'exact', head: true }),
-      client().from('xl_leads').select('id', { count: 'exact', head: true }).eq('status', 'converted'),
-      client().from('tasks').select('id', { count: 'exact', head: true }).eq('due_date', u.today()).eq('status', 'pending'),
+    const today = u.today();
+    const [waAll, waDeal, waActive, tasksToday, notices] = await Promise.all([
+      client().from('wa_customers').select('id', { count: 'exact', head: true }),
+      client().from('wa_deals').select('id', { count: 'exact', head: true }),
+      client().from('wa_customers').select('id', { count: 'exact', head: true }).not('inquiry_status', 'in', '("已成交","后续无回复","无回复")'),
+      client().from('tasks').select('id', { count: 'exact', head: true }).eq('due_date', today).eq('status', 'pending'),
       client().from('wa_notices').select('id', { count: 'exact', head: true }).eq('is_active', true),
     ]);
 
     return {
       waTotal: waAll.count || 0,
-      waDeals: waDeals.count || 0,
-      waLost: waLost.count || 0,
-      waHighIntent: waAB.count || 0,
-      xlTotal: xlAll.count || 0,
-      xlConverted: xlConverted.count || 0,
+      waDeals: waDeal.count || 0,
+      waActive: waActive.count || 0,
       tasksToday: tasksToday.count || 0,
       activeNotices: notices.count || 0,
     };
   }
 
+  // ==================== 数据导入 ====================
+  async function bulkImport(customers, deals) {
+    for (const c of customers) {
+      await waSaveCustomer(c);
+    }
+    for (const d of deals) {
+      await waSaveDeal(d);
+    }
+  }
+
   return {
-    // 西澳
     waGetCustomers, waGetCustomer, waSaveCustomer, waDeleteCustomer,
     waGetDeals, waSaveDeal,
-    waGetNotices, waSaveNotice, waUpdateNotice,
-    // 小羚
-    xlGetLeads, xlGetLead, xlSaveLead, xlDeleteLead,
-    // 任务
+    waGetNotices, waSaveNotice, waDismissNotice, checkNoticeRelevance,
     getTasks, saveTask, completeTask,
-    // 跟进
     addFollowUpLog, getFollowUpLogs,
-    // 模板
-    getTemplates, saveTemplate, incrementTemplateUsage,
-    // 统计
-    getDashboardStats,
+    getDashboardStats, bulkImport,
   };
 })();
