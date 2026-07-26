@@ -29,6 +29,11 @@ JC.Store = (() => {
     const user = await JC.Supabase.getUser();
     if (!user) throw new Error('未登录');
     if (!customer.owner_id) customer.owner_id = user.id;
+    // 统一日期格式：YYYY.MM.DD → YYYY-MM-DD
+    if (customer.first_inquiry_date) {
+      const m = String(customer.first_inquiry_date).match(/(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})/);
+      if (m) customer.first_inquiry_date = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    }
     if (customer.id) {
       customer.updated_at = new Date().toISOString();
       return await client().from('wa_customers').update(customer).eq('id', customer.id);
@@ -53,14 +58,19 @@ JC.Store = (() => {
     const user = await JC.Supabase.getUser();
     if (!user) throw new Error('未登录');
     if (!deal.owner_id) deal.owner_id = user.id;
-    // 自动计算结算月份
+    // 统一日期格式：YYYY.MM.DD → YYYY-MM-DD（Supabase DATE 类型要求）
     if (deal.order_date) {
-      const d = new Date(deal.order_date);
-      if (d.getDate() < 27) {
-        deal.settlement_month = `${d.getFullYear()}年${d.getMonth()+1}月`;
-      } else {
-        const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-        deal.settlement_month = `${next.getFullYear()}年${next.getMonth()+1}月`;
+      const m = String(deal.order_date).match(/(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})/);
+      if (m) {
+        const yr = parseInt(m[1]), mo = parseInt(m[2]), dy = parseInt(m[3]);
+        deal.order_date = `${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+        if (dy < 27) {
+          deal.settlement_month = `${yr}年${mo}月`;
+        } else {
+          const nextMo = mo === 12 ? 1 : mo + 1;
+          const nextYr = mo === 12 ? yr + 1 : yr;
+          deal.settlement_month = `${nextYr}年${nextMo}月`;
+        }
       }
     }
     if (deal.id) {
