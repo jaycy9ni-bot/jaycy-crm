@@ -117,10 +117,26 @@ JC.AI = (() => {
         <div class="form-group"><label class="form-label">计划出行日期</label><input class="form-input" id="ai-date" value="${u.esc(result.travelDate || result.basicInfo?.travelDate || '')}"></div>
         <div class="form-group"><label class="form-label">天数</label><input class="form-input" id="ai-days" value="${u.esc(result.travelDays || result.basicInfo?.travelDays || '')}"></div>
         <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="ai-people" value="${u.esc(result.peopleCount || result.basicInfo?.peopleCount || '')}"></div>
-        <div class="form-group"><label class="form-label">意向套餐</label><input class="form-input" id="ai-product" value="${u.esc(result.productInterest || result.recommendedProduct?.name || '')}"></div>
-        <div class="form-group"><label class="form-label">意向程度</label>
-          <select class="form-select" id="ai-intent"><option ${result.grade === 'A' ? 'selected' : ''}>高</option><option ${result.grade === 'B' ? 'selected' : ''}>中</option><option ${result.grade === 'C' || result.grade === 'D' ? 'selected' : ''}>低</option></select>
+        <div class="form-group"><label class="form-label">意向套餐</label>
+          <select class="form-select" id="ai-product">
+            <option value="">请选择</option>
+            ${['玛格丽特河一日','波浪岩一日','粉湖两日','粉湖三日','纯玩三日A','纯玩三日B','纯玩三日C','纯玩四日A','纯玩四日B','纯玩四日C','纯玩五日','轻松四日','杰伦五日','经典五日','浪漫五日','明星六日','纯粹六日','奇观六日','全景七日'].map(p => {
+              const aiProduct = result.productInterest || result.recommendedProduct?.name || '';
+              const match = aiProduct && (p === aiProduct || aiProduct.includes(p) || p.includes(aiProduct));
+              return `<option ${match ? 'selected' : ''}>${p}</option>`;
+            }).join('')}
+          </select>
         </div>
+        <div class="form-group"><label class="form-label">意向程度</label>
+          <select class="form-select" id="ai-intent">
+            ${['高','中高','中','低','距离出游时间还太远','已流失'].map(o => {
+              const grade = result.grade;
+              const defaultIntent = grade === 'A' ? '高' : grade === 'B' ? '中高' : grade === 'C' ? '中' : '低';
+              return `<option ${defaultIntent === o ? 'selected' : ''}>${o}</option>`;
+            }).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">卡点</label><input class="form-input" id="ai-blocker" value="${u.esc(result.concerns?.join('；') || '')}" placeholder="客户卡在哪里"></div>
         ${result.concerns?.length ? `<div class="mb-12">${result.concerns.map(c => `<span class="tag" style="background:var(--danger-light);">${u.esc(c)}</span>`).join(' ')}</div>` : ''}
         ${result.followUpScript ? `<div class="form-group"><label class="form-label">AI 跟进话术</label><textarea class="form-textarea" id="ai-script" style="min-height:80px;">${u.esc(result.followUpScript)}</textarea></div>` : ''}
         <button class="btn btn-primary btn-block mt-12" id="btn-ai-save">💾 保存到咨询表</button>
@@ -136,8 +152,9 @@ JC.AI = (() => {
         travel_date: document.getElementById('ai-date').value.trim(),
         days: document.getElementById('ai-days').value.trim(),
         people: document.getElementById('ai-people').value.trim(),
-        product_interest: document.getElementById('ai-product').value.trim(),
+        product_interest: document.getElementById('ai-product').value,
         intent_level: document.getElementById('ai-intent').value,
+        blocker: document.getElementById('ai-blocker').value.trim(),
         inquiry_status: '咨询中',
         first_inquiry_date: u.today(),
         follow_up_script: document.getElementById('ai-script')?.value || '',
