@@ -165,31 +165,72 @@ JC.AI = (() => {
       if (!text) { u.toast('请输入内容'); return; }
       parseBtn.disabled = true; parseBtn.textContent = '⏳ AI 解析中...';
 
-      const result = await callAI(text);
-      parseBtn.disabled = false; parseBtn.textContent = '🔍 AI 解析';
-      if (!result || result.error) { u.toast('解析失败: ' + (result?.message || '未知错误')); return; }
-      showResult(result);
+      try {
+        const result = await callAI(text);
+        if (!result || result.error) {
+          u.toast('解析失败: ' + (result?.message || '未知错误'));
+          return;
+        }
+        showResult(result);
+      } catch (err) {
+        u.toast('解析出错: ' + (err.message || '网络异常'));
+      } finally {
+        parseBtn.disabled = false;
+        parseBtn.textContent = '🔍 AI 解析';
+      }
     });
   }
 
   async function callAI(text) {
+    // 优先走用户填的 DeepSeek Key（前端直连，更快更稳）
     try {
-      const resp = await fetch(VERCEL_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'parseChat', text, module: 'wa' }) });
-      return await resp.json();
-    } catch {
-      try {
-        const profile = await JC.Supabase.getProfile();
-        if (profile?.deepseek_api_key) {
-          const resp = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.deepseek_api_key}` },
-            body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'system', content: '你是西澳旅游销售专家。从聊天记录提取JSON: {"nickname":"","contact":"","travelDate":"","travelDays":"","peopleCount":"","relationship":"","productInterest":"","concerns":[],"score":0,"grade":"","followUpScript":""}。只输出JSON。' }, { role: 'user', content: text }], temperature: 0.2 }),
-          });
-          const data = await resp.json();
-          const raw = (data.choices?.[0]?.message?.content || '{}').replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          return JSON.parse(raw);
-        }
-      } catch {}
-      return { error: 'AI 不可用' };
+      const profile = await JC.Supabase.getProfile();
+      if (profile?.deepseek_api_key) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 15000);
+        const resp = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          signal: ctrl.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${profile.deepseek_api_key}`,
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是西澳旅游销售专家。从聊天记录提取JSON: {"nickname":"","contact":"","travelDate":"","travelDays":"","peopleCount":"","relationship":"","productInterest":"","concerns":[],"score":0,"grade":"","followUpScript":""}。只输出JSON。' },
+              { role: 'user', content: text },
+            ],
+            temperature: 0.2,
+          }),
+        });
+        clearTimeout(timer);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const raw = (data.choices?.[0]?.message?.content || '{}').replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        return JSON.parse(raw);
+      }
+    } catch (err) {
+      console.warn('DeepSeek direct failed:', err.message);
+    }
+
+    // Fallback: Vercel proxy
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const resp = await fetch(VERCEL_API, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'parseChat', text, module: 'wa' }),
+      });
+      clearTimeout(timer);
+      const data = await resp.json();
+      if (data.mock) console.log('Vercel returned mock');
+      return data;
+    } catch (err) {
+      console.warn('Vercel fallback failed:', err.message);
+      return { error: true, message: 'AI 服务暂时不可用，请稍后重试或切换到手动录入' };
     }
   }
 
