@@ -26,6 +26,9 @@ JC.Store = (() => {
   }
 
   async function waSaveCustomer(customer) {
+    const user = await JC.Supabase.getUser();
+    if (!user) throw new Error('未登录');
+    if (!customer.owner_id) customer.owner_id = user.id;
     if (customer.id) {
       customer.updated_at = new Date().toISOString();
       return await client().from('wa_customers').update(customer).eq('id', customer.id);
@@ -47,6 +50,9 @@ JC.Store = (() => {
   }
 
   async function waSaveDeal(deal) {
+    const user = await JC.Supabase.getUser();
+    if (!user) throw new Error('未登录');
+    if (!deal.owner_id) deal.owner_id = user.id;
     // 自动计算结算月份
     if (deal.order_date) {
       const d = new Date(deal.order_date);
