@@ -22,6 +22,24 @@ JC.Utils = {
     } catch { return dateStr; }
   },
 
+  // 统一导出日期格式：2026.08.01（兼容各种输入：2026-08-01 / 2026.8.1 / 8.1 / 2026/8/1 等）
+  normalizeDate(str) {
+    if (!str) return '';
+    // 已经是 YYYY.MM.DD 格式直接返回
+    if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str;
+    // 清理：去掉中文，统一分隔符为 -
+    let cleaned = str.replace(/[年月]/g, '-').replace(/[日号]/g, '').replace(/[\/\.]/g, '-').trim();
+    // 提取数字部分
+    const nums = cleaned.match(/\d+/g);
+    if (!nums || nums.length < 2) return str;
+    // 补全年份
+    if (nums.length === 2) nums.unshift(String(new Date().getFullYear()));
+    const y = nums[0].length === 2 ? '20' + nums[0] : nums[0].padStart(4, '20');
+    const m = nums[1].padStart(2, '0');
+    const d = nums[2] ? nums[2].padStart(2, '0') : '01';
+    return `${y}.${m}.${d}`;
+  },
+
   // 格式化时间
   formatTime(dateStr) {
     if (!dateStr) return '';

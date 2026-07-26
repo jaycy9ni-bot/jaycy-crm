@@ -439,14 +439,29 @@ JC.WA = (() => {
   // ==================== 导出成单 CSV ====================
   async function exportDealsCSV() {
     const deals = await JC.Store.waGetDeals();
-    // 字段顺序：序号/接单号/订单状态/成单日期/拉群日期/出行日期/出行天数/人数/产品/客户微信名/客户信息/联系方式/房型/总价/付款方式/付款状态/尾款日期/接送机/备注/评价/结算月份
     const headers = ['序号','接单号','订单状态','成单日期','拉群日期','出行日期','出行天数','人数','产品','客户微信名','客户信息','联系方式','房型','总价/付款备注','付款方式','付款状态','尾款日期','接送机','备注','评价','结算月份'];
     const rows = deals.map((d, i) => [
-      i+1, d.agent_name || 'Jaycy', '已完成', d.order_date || '', d.group_date || '',
-      d.travel_date || '', d.travel_days || '', d.people_count || '', d.product_name,
-      d.wechat_name || '', d.customer_info || '', d.contact_info || '',
-      d.room_type || '', d.total_amount || '', d.payment_method || '', d.payment_status || '',
-      d.final_payment_date || '', d.pickup_dropoff || '', d.notes || '', d.review || '', d.settlement_month || ''
+      i+1,
+      d.agent_name || 'Jaycy',
+      '已完成',
+      u.normalizeDate(d.order_date),
+      u.normalizeDate(d.group_date),
+      u.normalizeDate(d.travel_date),
+      d.travel_days || '',
+      d.people_count || '',
+      d.product_name || '',
+      d.wechat_name || '',
+      d.customer_info || '',
+      d.contact_info || '',
+      d.room_type || '',
+      d.total_amount || '',
+      d.payment_method || '',
+      d.payment_status || '',
+      u.normalizeDate(d.final_payment_date),
+      d.pickup_dropoff || '',
+      d.notes || '',
+      d.review || '',
+      d.settlement_month || ''
     ]);
     const BOM = '\uFEFF';
     const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
@@ -463,25 +478,23 @@ JC.WA = (() => {
   // ==================== 导出咨询 CSV ====================
   async function exportCustomersCSV() {
     const customers = await JC.Store.waGetCustomers();
-    // 咨询表导出字段（对齐群内实际信息：无联系方式，只有微信名+聊天内容）
-    const headers = ['序号','微信名','微信号/联系方式','计划出行日期','出行天数','人数','意向套餐','意向程度','卡点','状态','首询日期','跟进1','跟进2','跟进3','下次跟进日期','聊天记录'];
+    const headers = ['序号','微信名','微信号/联系方式','计划出行日期','出行天数','人数','意向套餐','意向程度','卡点','状态','首询日期','跟进1','跟进2','跟进3','下次跟进日期'];
     const rows = customers.map((c, i) => [
       i+1,
       c.wechat_name || c.nickname || '',
       c.contact || '',
-      c.plan_date || c.travel_date || '',
+      u.normalizeDate(c.plan_date || c.travel_date),
       c.days || c.travel_days || '',
       c.people || c.people_count || '',
       c.product_interest || c.recommended_product || '',
       c.intent_level || '',
       c.blocker || '',
       c.inquiry_status || c.status || '',
-      c.first_inquiry_date || '',
+      u.normalizeDate(c.first_inquiry_date),
       c.follow_up_1 || '',
       c.follow_up_2 || '',
       c.follow_up_3 || '',
-      c.next_follow_up_date || '',
-      c.chat_history || ''
+      u.normalizeDate(c.next_follow_up_date)
     ]);
     const BOM = '\uFEFF';
     const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
