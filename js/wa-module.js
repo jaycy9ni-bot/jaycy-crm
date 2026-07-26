@@ -63,6 +63,7 @@ JC.WA = (() => {
   // ==================== 咨询表 ====================
   async function renderCustomers(container) {
     container.innerHTML = `
+      <button class="btn btn-primary btn-block mb-12" onclick="JC.Router.navigate('add')">➕ 添加客户</button>
       <div class="search-bar"><input type="text" class="form-input" id="wa-search" placeholder="搜索微信名/联系方式..."></div>
       <div class="filter-bar" id="wa-filter">
         <span class="filter-chip active" data-filter="all">全部</span>
@@ -394,6 +395,7 @@ JC.WA = (() => {
     });
 
     content.innerHTML = `
+      <button class="btn btn-primary btn-block mb-12" onclick="JC.WA.addManualDeal()">➕ 添加成单</button>
       <div class="card" style="background:var(--success-light);text-align:center;margin-bottom:16px;">
         <div class="stat-number" style="color:var(--success);">${deals.length}</div>
         <div class="stat-label">总成单数 · 累计 ${totalAmount.toLocaleString()} AUD</div>
@@ -454,6 +456,75 @@ JC.WA = (() => {
     URL.revokeObjectURL(url);
     u.toast('导出完成 ✅');
   }
+
+  // ==================== 手动添加成单（独立，无需关联客户） ====================
+  async function addManualDeal() {
+    document.querySelector('.overlay')?.remove();
+    const productOptions = ['', ...PRODUCTS].map(p => `<option>${p}</option>`).join('');
+    const roomOptions = ROOM_TYPES.map(r => `<option>${r}</option>`).join('');
+    const statusOptions = ORDER_STATUS.map(o => `<option ${o === '待出行' ? 'selected' : ''}>${o}</option>`).join('');
+
+    showOverlay(`
+      <div class="overlay-header"><h3>➕ 手动添加成单</h3><button class="btn-icon" onclick="document.querySelector('.overlay')?.remove()">✕</button></div>
+      <div class="overlay-body">
+        <div class="form-group"><label class="form-label">客户微信名</label><input class="form-input" id="d-wechat" placeholder="客户微信昵称"></div>
+        <div class="form-group"><label class="form-label">产品 *</label><select class="form-select" id="d-product">${productOptions}</select></div>
+        <div class="form-group"><label class="form-label">客户信息（姓名+性别）</label><input class="form-input" id="d-customer-info"></div>
+        <div class="form-group"><label class="form-label">联系方式</label><input class="form-input" id="d-contact"></div>
+        <div class="form-group"><label class="form-label">出行日期</label><input class="form-input" id="d-travel-date" placeholder="如 2026.8.1"></div>
+        <div class="form-group"><label class="form-label">出行天数</label><input class="form-input" id="d-days" placeholder="如 3"></div>
+        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="d-people" placeholder="如 2"></div>
+        <div class="form-group"><label class="form-label">房型</label><select class="form-select" id="d-room">${roomOptions}</select></div>
+        <div class="form-group"><label class="form-label">总价（AUD）</label><input class="form-input" id="d-price" placeholder="如 1198"></div>
+        <div class="form-group"><label class="form-label">付款方式</label><input class="form-input" id="d-pay-method" placeholder="微信转账/澳币转账"></div>
+        <div class="form-group"><label class="form-label">付款状态</label><input class="form-input" id="d-pay-status" placeholder="全款/定金+尾款"></div>
+        <div class="form-group"><label class="form-label">成单日期 *</label><input class="form-input" type="date" id="d-order-date" value="${u.today()}"><div class="text-xs text-muted mt-4">⚠️ 提成按成单日期计算，27号为月结算分割线</div></div>
+        <div class="form-group"><label class="form-label">尾款日期</label><input class="form-input" id="d-final-pay" placeholder="如 6.18"></div>
+        <div class="form-group">
+          <label class="form-label">接送机</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" id="d-pickup-check"> 接送机</label>
+            <input class="form-input flex-1" id="d-pickup-flight" placeholder="航班号（如 MU739）">
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="d-notes" style="min-height:60px;"></textarea></div>
+        <div class="form-group"><label class="form-label">订单状态</label><select class="form-select" id="d-status">${statusOptions}</select></div>
+      </div>
+      <div class="overlay-footer"><button class="btn btn-primary btn-block" id="btn-save-manual-deal">✅ 保存成单</button></div>
+    `);
+
+    document.getElementById('btn-save-manual-deal').addEventListener('click', async () => {
+      const product = document.getElementById('d-product').value;
+      if (!product) { u.toast('请选择产品'); return; }
+      const orderDate = document.getElementById('d-order-date').value || u.today();
+
+      await JC.Store.waSaveDeal({
+        wechat_name: document.getElementById('d-wechat').value.trim(),
+        product_name: product,
+        order_date: orderDate,
+        customer_info: document.getElementById('d-customer-info').value.trim(),
+        contact_info: document.getElementById('d-contact').value.trim(),
+        travel_date: document.getElementById('d-travel-date').value.trim(),
+        travel_days: document.getElementById('d-days').value.trim(),
+        people_count: parseInt(document.getElementById('d-people').value) || 0,
+        room_type: document.getElementById('d-room').value,
+        total_amount: document.getElementById('d-price').value.trim(),
+        payment_method: document.getElementById('d-pay-method').value.trim(),
+        payment_status: document.getElementById('d-pay-status').value.trim(),
+        final_payment_date: document.getElementById('d-final-pay').value.trim(),
+        pickup_dropoff: (document.getElementById('d-pickup-check')?.checked ? '☑ ' : '') + (document.getElementById('d-pickup-flight')?.value || ''),
+        notes: document.getElementById('d-notes').value,
+        agent_name: 'Jaycy',
+        group_date: u.today(),
+      });
+
+      document.querySelector('.overlay')?.remove();
+      u.toast('成单已记录 🎉');
+      JC.Router.renderPage();
+    });
+  }
+
+  function renderAddCustomerButton() { return null; }
 
   // ==================== 回访提醒 ====================
   async function renderReviews(container) {
@@ -529,5 +600,5 @@ JC.WA = (() => {
     document.body.appendChild(overlay);
   }
 
-  return { render, showDetail, editCustomer, addFollowUp, convertToDeal, exportDealsCSV };
+  return { render, showDetail, editCustomer, addFollowUp, convertToDeal, exportDealsCSV, addManualDeal, PRODUCTS, INTENT_LEVELS, ROOM_TYPES, ORDER_STATUS, renderAddCustomerButton };
 })();

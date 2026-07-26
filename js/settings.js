@@ -18,7 +18,8 @@ JC.Settings = (() => {
       </div>
 
       <div class="card">
-        <div class="card-title mb-12">🔑 DeepSeek API Key（可选）</div>
+        <div class="card-title mb-12">🔑 DeepSeek API Key</div>
+        <p class="text-sm text-muted mb-8">填入后 AI 录入会直接调用 DeepSeek（前端直连，无需 Vercel）。<br>获取：platform.deepseek.com → API Keys</p>
         <div class="form-group"><label class="form-label">API Key</label><input type="password" class="form-input" id="s-key" value="${u.esc(profile?.deepseek_api_key || '')}" placeholder="sk-..."></div>
         <button class="btn btn-primary btn-sm" id="btn-save-key">保存</button>
       </div>

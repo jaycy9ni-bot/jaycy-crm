@@ -7,8 +7,98 @@ JC.AI = (() => {
   const u = JC.Utils;
   const VERCEL_API = 'https://jaycy-crm-ai.vercel.app/api/ai';
   let ocrTexts = [];
+  let addMode = 'ai'; // 'ai' | 'manual'
 
   async function renderAddForm(container, module) {
+    ocrTexts = [];
+    addMode = 'ai';
+    container.innerHTML = `
+      <div class="filter-bar" id="add-subnav" style="margin-bottom:12px;">
+        <span class="filter-chip active" data-mode="ai">🤖 AI 录入</span>
+        <span class="filter-chip" data-mode="manual">✍️ 手动录入</span>
+      </div>
+      <div id="add-content"></div>
+    `;
+    document.querySelectorAll('#add-subnav .filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#add-subnav .filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        addMode = chip.dataset.mode;
+        renderMode(document.getElementById('add-content'), module);
+      });
+    });
+    renderMode(document.getElementById('add-content'), module);
+  }
+
+  async function renderMode(container, module) {
+    if (addMode === 'ai') return renderAIMode(container, module);
+    return renderManualMode(container, module);
+  }
+
+  // ==================== 手动录入（类企微智能表格） ====================
+  async function renderManualMode(container, module) {
+    if (module === 'xl') {
+      container.innerHTML = `<div class="card"><p class="text-sm text-muted">小羚模块暂不录入客户数据，请在微信侧使用微伴。</p></div>`;
+      return;
+    }
+    const productOpts = [''].concat(JC.WA.PRODUCTS || []).map(p => `<option>${p}</option>`).join('');
+    const intentOpts = [''].concat(JC.WA.INTENT_LEVELS || []).map(o => `<option>${o}</option>`).join('');
+    const statusOpts = ['咨询中','已报价','考虑中','后续无回复','无回复','已成交','已流失'].map(o => `<option>${o}</option>`).join('');
+
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-title mb-12">✍️ 手动添加咨询客户</div>
+        <p class="text-sm text-muted mb-16">类似企微智能表格，直接填表保存</p>
+
+        <div class="form-group"><label class="form-label">微信名 *</label><input class="form-input" id="m-name" placeholder="客户微信昵称"></div>
+        <div class="form-group"><label class="form-label">联系方式</label><input class="form-input" id="m-contact" placeholder="手机号/微信号"></div>
+        <div class="form-group"><label class="form-label">首询日期</label><input class="form-input" type="date" id="m-first-date" value="${u.today()}"></div>
+        <div class="form-group"><label class="form-label">计划出行日期</label><input class="form-input" id="m-plan-date" placeholder="如 2026.8.1"></div>
+        <div class="form-group"><label class="form-label">出行天数</label><input class="form-input" id="m-days" placeholder="如 3"></div>
+        <div class="form-group"><label class="form-label">人数</label><input class="form-input" id="m-people" placeholder="如 2"></div>
+        <div class="form-group"><label class="form-label">意向套餐</label><select class="form-select" id="m-product">${productOpts}</select></div>
+        <div class="form-group"><label class="form-label">意向程度</label><select class="form-select" id="m-intent">${intentOpts}</select></div>
+        <div class="form-group"><label class="form-label">卡点</label><input class="form-input" id="m-blocker" placeholder="如等签证/价格敏感/时间未定"></div>
+        <div class="form-group"><label class="form-label">状态</label><select class="form-select" id="m-status">${statusOpts}</select></div>
+        <div class="form-group"><label class="form-label">跟进-1</label><textarea class="form-textarea" id="m-fu1" style="min-height:60px;"></textarea></div>
+        <div class="form-group"><label class="form-label">跟进-2</label><textarea class="form-textarea" id="m-fu2" style="min-height:60px;"></textarea></div>
+        <div class="form-group"><label class="form-label">跟进-3</label><textarea class="form-textarea" id="m-fu3" style="min-height:60px;"></textarea></div>
+        <div class="form-group"><label class="form-label">下次跟进日期</label><input class="form-input" type="date" id="m-next-fu"></div>
+
+        <button class="btn btn-primary btn-block mt-12" id="btn-manual-save">💾 保存到咨询表</button>
+      </div>
+    `;
+
+    document.getElementById('btn-manual-save').addEventListener('click', async () => {
+      const name = document.getElementById('m-name').value.trim();
+      if (!name) { u.toast('请填写微信名'); return; }
+      await JC.Store.waSaveCustomer({
+        nickname: name, wechat_name: name,
+        contact: document.getElementById('m-contact').value.trim(),
+        first_inquiry_date: document.getElementById('m-first-date').value || u.today(),
+        plan_date: document.getElementById('m-plan-date').value.trim(),
+        travel_date: document.getElementById('m-plan-date').value.trim(),
+        days: document.getElementById('m-days').value.trim(),
+        travel_days: document.getElementById('m-days').value.trim(),
+        people: document.getElementById('m-people').value.trim(),
+        people_count: document.getElementById('m-people').value.trim(),
+        product_interest: document.getElementById('m-product').value,
+        intent_level: document.getElementById('m-intent').value,
+        blocker: document.getElementById('m-blocker').value.trim(),
+        inquiry_status: document.getElementById('m-status').value,
+        status: document.getElementById('m-status').value,
+        follow_up_1: document.getElementById('m-fu1').value,
+        follow_up_2: document.getElementById('m-fu2').value,
+        follow_up_3: document.getElementById('m-fu3').value,
+        next_follow_up_date: document.getElementById('m-next-fu').value,
+      });
+      u.toast('已保存 ✅');
+      JC.Router.navigate('wa');
+    });
+  }
+
+  // ==================== AI 录入模式（原有逻辑） ====================
+  async function renderAIMode(container, module) {
     ocrTexts = [];
     container.innerHTML = `
       <div class="card">
