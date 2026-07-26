@@ -129,11 +129,18 @@ JC.AI = (() => {
         </div>
         <div class="form-group"><label class="form-label">意向程度</label>
           <select class="form-select" id="ai-intent">
-            ${['高','中高','中','低','距离出游时间还太远','已流失'].map(o => {
-              const grade = result.grade;
-              const defaultIntent = grade === 'A' ? '高' : grade === 'B' ? '中高' : grade === 'C' ? '中' : '低';
-              return `<option ${defaultIntent === o ? 'selected' : ''}>${o}</option>`;
-            }).join('')}
+            ${[
+                '高（在等签证或者朋友）',
+                '中高（有希望）',
+                '中低（咨询过但意向不明显）',
+                '低（没怎么回复过或者未透露有效信息）',
+                '距离出游时间还太远',
+                '已流失（时间对不上/没有意向景点/出游时间已过）'
+              ].map(o => {
+                const grade = result.grade;
+                const defaultIntent = grade === 'A' ? '高（在等签证或者朋友）' : grade === 'B' ? '中高（有希望）' : grade === 'C' ? '中低（咨询过但意向不明显）' : '低（没怎么回复过或者未透露有效信息）';
+                return `<option ${defaultIntent === o ? 'selected' : ''}>${o}</option>`;
+              }).join('')}
           </select>
         </div>
         <div class="form-group"><label class="form-label">卡点</label><input class="form-input" id="ai-blocker" value="${u.esc(result.concerns?.join('；') || '')}" placeholder="客户卡在哪里"></div>

@@ -17,7 +17,14 @@ JC.WA = (() => {
   ];
 
   // 意向程度选项
-  const INTENT_LEVELS = ['高', '中高', '中', '低', '距离出游时间还太远', '已流失'];
+  const INTENT_LEVELS = [
+    '高（在等签证或者朋友）',
+    '中高（有希望）',
+    '中低（咨询过但意向不明显）',
+    '低（没怎么回复过或者未透露有效信息）',
+    '距离出游时间还太远',
+    '已流失（时间对不上/没有意向景点/出游时间已过）'
+  ];
 
   // 订单状态
   const ORDER_STATUS = ['已完成', '待出行', '进行中', '已取消'];
@@ -59,10 +66,10 @@ JC.WA = (() => {
       <div class="search-bar"><input type="text" class="form-input" id="wa-search" placeholder="搜索微信名/联系方式..."></div>
       <div class="filter-bar" id="wa-filter">
         <span class="filter-chip active" data-filter="all">全部</span>
-        <span class="filter-chip" data-filter="高">高意向</span>
+        <span class="filter-chip" data-filter="高">高</span>
         <span class="filter-chip" data-filter="中高">中高</span>
-        <span class="filter-chip" data-filter="中">中意向</span>
-        <span class="filter-chip" data-filter="低">低意向</span>
+        <span class="filter-chip" data-filter="中低">中低</span>
+        <span class="filter-chip" data-filter="低">低</span>
         <span class="filter-chip" data-filter="today">今日跟进</span>
         <span class="filter-chip" data-filter="deal">已成交</span>
       </div>
@@ -90,7 +97,7 @@ JC.WA = (() => {
     if (!list) return;
 
     const filters = {};
-    if (['高', '中高', '中', '低'].includes(currentFilter)) filters.intent = currentFilter;
+    if (['高', '中高', '中低', '低'].includes(currentFilter)) filters.intent = currentFilter;
     if (currentFilter === 'deal') filters.status = '已成交';
     if (currentFilter === 'today') filters.todayFollow = true;
     if (search) filters.search = search;
@@ -104,8 +111,8 @@ JC.WA = (() => {
 
     list.innerHTML = customers.map(c => {
       const name = c.wechat_name || c.nickname || '未命名';
-      const intentColor = c.intent_level === '高' ? 'var(--success)' : c.intent_level === '中高' ? 'var(--primary)' : c.intent_level === '中' ? 'var(--warning)' : 'var(--danger)';
-      const intentBg = c.intent_level === '高' ? 'var(--success-light)' : c.intent_level === '中高' ? 'var(--primary-light)' : c.intent_level === '中' ? 'var(--warning-light)' : 'var(--danger-light)';
+      const intentColor = c.intent_level?.startsWith('高') ? 'var(--success)' : c.intent_level?.startsWith('中高') ? 'var(--primary)' : c.intent_level?.startsWith('中低') ? 'var(--warning)' : 'var(--danger)';
+      const intentBg = c.intent_level?.startsWith('高') ? 'var(--success-light)' : c.intent_level?.startsWith('中高') ? 'var(--primary-light)' : c.intent_level?.startsWith('中低') ? 'var(--warning-light)' : 'var(--danger-light)';
       const isDeal = c.inquiry_status === '已成交';
       return `
         <div class="card" onclick="JC.WA.showDetail('${c.id}')" style="cursor:pointer;${isDeal ? 'border-left:4px solid var(--success);' : ''}">
@@ -142,8 +149,8 @@ JC.WA = (() => {
     const logs = await JC.Store.getFollowUpLogs('wa', id);
     const name = c.wechat_name || c.nickname || '未命名';
 
-    const intentColor = c.intent_level === '高' ? 'var(--success)' : c.intent_level === '中高' ? 'var(--primary)' : c.intent_level === '中' ? 'var(--warning)' : 'var(--danger)';
-    const intentBg = c.intent_level === '高' ? 'var(--success-light)' : c.intent_level === '中高' ? 'var(--primary-light)' : c.intent_level === '中' ? 'var(--warning-light)' : 'var(--danger-light)';
+    const intentColor = c.intent_level?.startsWith('高') ? 'var(--success)' : c.intent_level?.startsWith('中高') ? 'var(--primary)' : c.intent_level?.startsWith('中低') ? 'var(--warning)' : 'var(--danger)';
+    const intentBg = c.intent_level?.startsWith('高') ? 'var(--success-light)' : c.intent_level?.startsWith('中高') ? 'var(--primary-light)' : c.intent_level?.startsWith('中低') ? 'var(--warning-light)' : 'var(--danger-light)';
 
     showOverlay(`
       <div class="overlay-header">
@@ -319,7 +326,13 @@ JC.WA = (() => {
         <div class="form-group"><label class="form-label">付款状态</label><input class="form-input" id="d-pay-status" placeholder="全款/定金+尾款"></div>
         <div class="form-group"><label class="form-label">成单日期 *</label><input class="form-input" type="date" id="d-order-date" value="${u.today()}"><div class="text-xs text-muted mt-4">⚠️ 提成按成单日期计算，27号为月结算分割线</div></div>
         <div class="form-group"><label class="form-label">尾款日期</label><input class="form-input" id="d-final-pay" placeholder="如 6.18"></div>
-        <div class="form-group"><label class="form-label">接送机</label><input class="form-input" id="d-pickup" placeholder="无/接机/送机/接送机"></div>
+        <div class="form-group">
+          <label class="form-label">接送机</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="display:flex;align-items:center;gap:4px;font-size:14px;"><input type="checkbox" id="d-pickup-check"> 接送机</label>
+            <input class="form-input flex-1" id="d-pickup-flight" placeholder="航班号（如 MU739）">
+          </div>
+        </div>
         <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="d-notes" style="min-height:60px;"></textarea></div>
         <div class="form-group"><label class="form-label">订单状态</label><select class="form-select" id="d-status">${statusOptions}</select></div>
       </div>
@@ -346,7 +359,7 @@ JC.WA = (() => {
         payment_method: document.getElementById('d-pay-method').value.trim(),
         payment_status: document.getElementById('d-pay-status').value.trim(),
         final_payment_date: document.getElementById('d-final-pay').value.trim(),
-        pickup_dropoff: document.getElementById('d-pickup').value.trim(),
+        pickup_dropoff: (document.getElementById('d-pickup-check')?.checked ? '☑ ' : '') + (document.getElementById('d-pickup-flight')?.value || ''),
         notes: document.getElementById('d-notes').value,
         agent_name: 'Jaycy',
         group_date: c.first_inquiry_date || u.today(),
