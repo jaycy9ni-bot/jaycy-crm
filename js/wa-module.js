@@ -436,76 +436,110 @@ JC.WA = (() => {
     `;
   }
 
-  // ==================== 导出成单 CSV ====================
+  // ==================== 导出成单 Excel（HTML 格式 .xls，WPS 完美打开） ====================
   async function exportDealsCSV() {
     const deals = await JC.Store.waGetDeals();
+    // 按成单日期排序（新→旧）
+    deals.sort((a, b) => {
+      const da = a.order_date || '';
+      const db = b.order_date || '';
+      return da > db ? -1 : da < db ? 1 : 0;
+    });
+
     const headers = ['序号','接单号','订单状态','成单日期','拉群日期','出行日期','出行天数','人数','产品','客户微信名','客户信息','联系方式','房型','总价/付款备注','付款方式','付款状态','尾款日期','接送机','备注','评价','结算月份'];
-    const rows = deals.map((d, i) => [
-      i+1,
-      d.agent_name || 'Jaycy',
-      '已完成',
-      u.normalizeDate(d.order_date),
-      u.normalizeDate(d.group_date),
-      u.normalizeDate(d.travel_date),
-      d.travel_days || '',
-      d.people_count || '',
-      d.product_name || '',
-      d.wechat_name || '',
-      d.customer_info || '',
-      d.contact_info || '',
-      d.room_type || '',
-      d.total_amount || '',
-      d.payment_method || '',
-      d.payment_status || '',
-      u.normalizeDate(d.final_payment_date),
-      d.pickup_dropoff || '',
-      d.notes || '',
-      d.review || '',
-      d.settlement_month || ''
-    ]);
-    const BOM = '\uFEFF';
-    const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `成单表-Jaycy-${u.today()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const rows = deals.map((d, i) => {
+      const paymentStatus = (d.payment_status || '').toLowerCase();
+      const isPendingPayment = paymentStatus.includes('定金') || paymentStatus.includes('尾款') || paymentStatus.includes('未付');
+      const isUncompleted = !d.order_date || (d.order_status && d.order_status !== '已完成');
+
+      let rowStyle = '';
+      if (isPendingPayment) rowStyle = 'background-color:#FFE4C4;';  // 淡橘色：尾款待付
+      else if (isUncompleted) rowStyle = 'background-color:#E8F5E9;'; // 淡绿色：未完成
+
+      return {
+        style: rowStyle,
+        cells: [
+          i+1, d.agent_name || 'Jaycy', '已完成',
+          u.normalizeDate(d.order_date), u.normalizeDate(d.group_date),
+          u.normalizeDate(d.travel_date), d.travel_days || '', d.people_count || '',
+          d.product_name || '', d.wechat_name || '', d.customer_info || '',
+          d.contact_info || '', d.room_type || '', d.total_amount || '',
+          d.payment_method || '', d.payment_status || '',
+          u.normalizeDate(d.final_payment_date), d.pickup_dropoff || '',
+          d.notes || '', d.review || '', d.settlement_month || ''
+        ]
+      };
+    });
+
+    const html = buildExcelHTML('成单表', headers, rows);
+    downloadXLS(html, `成单表-Jaycy-${u.today()}.xls`);
     u.toast('导出完成 ✅');
   }
 
-  // ==================== 导出咨询 CSV ====================
+  // ==================== 导出咨询 Excel（HTML 格式 .xls，WPS 完美打开） ====================
   async function exportCustomersCSV() {
     const customers = await JC.Store.waGetCustomers();
+    // 按首询日期排序（新→旧）
+    customers.sort((a, b) => {
+      const da = a.first_inquiry_date || '';
+      const db = b.first_inquiry_date || '';
+      return da > db ? -1 : da < db ? 1 : 0;
+    });
+
     const headers = ['序号','微信名','微信号/联系方式','计划出行日期','出行天数','人数','意向套餐','意向程度','卡点','状态','首询日期','跟进1','跟进2','跟进3','下次跟进日期'];
-    const rows = customers.map((c, i) => [
-      i+1,
-      c.wechat_name || c.nickname || '',
-      c.contact || '',
-      u.normalizeDate(c.plan_date || c.travel_date),
-      c.days || c.travel_days || '',
-      c.people || c.people_count || '',
-      c.product_interest || c.recommended_product || '',
-      c.intent_level || '',
-      c.blocker || '',
-      c.inquiry_status || c.status || '',
-      u.normalizeDate(c.first_inquiry_date),
-      c.follow_up_1 || '',
-      c.follow_up_2 || '',
-      c.follow_up_3 || '',
-      u.normalizeDate(c.next_follow_up_date)
-    ]);
-    const BOM = '\uFEFF';
-    const csv = BOM + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    const rows = customers.map((c, i) => {
+      const isDeal = (c.inquiry_status || c.status || '') === '已成交';
+      const rowStyle = isDeal ? 'background-color:#FCE4EC;' : ''; // 淡粉色：已成单
+
+      return {
+        style: rowStyle,
+        cells: [
+          i+1, c.wechat_name || c.nickname || '', c.contact || '',
+          u.normalizeDate(c.plan_date || c.travel_date),
+          c.days || c.travel_days || '', c.people || c.people_count || '',
+          c.product_interest || c.recommended_product || '',
+          c.intent_level || '', c.blocker || '',
+          c.inquiry_status || c.status || '',
+          u.normalizeDate(c.first_inquiry_date),
+          c.follow_up_1 || '', c.follow_up_2 || '', c.follow_up_3 || '',
+          u.normalizeDate(c.next_follow_up_date)
+        ]
+      };
+    });
+
+    const html = buildExcelHTML('咨询表', headers, rows);
+    downloadXLS(html, `咨询表-Jaycy-${u.today()}.xls`);
+    u.toast('导出完成 ✅');
+  }
+
+  // ==================== 构建 Excel HTML ====================
+  function buildExcelHTML(title, headers, rows) {
+    const headerRow = headers.map(h => `<th>${u.esc(h)}</th>`).join('');
+    const dataRows = rows.map(r => {
+      const cells = r.cells.map(c => `<td>${u.esc(String(c ?? ''))}</td>`).join('');
+      return `<tr style="${r.style || ''}">${cells}</tr>`;
+    }).join('');
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  table { border-collapse: collapse; width: 100%; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 12px; }
+  th { background-color: #4472C4; color: #ffffff; font-weight: bold; padding: 8px 6px; border: 1px solid #3462B4; text-align: center; white-space: nowrap; position: sticky; top: 0; }
+  td { padding: 6px; border: 1px solid #D9D9D9; text-align: center; }
+  tr:hover { filter: brightness(0.95); }
+</style></head><body><h2 style="font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:#333;">${title} · ${u.today()}</h2>
+<table>${headerRow}${dataRows}</table></body></html>`;
+  }
+
+  function downloadXLS(html, filename) {
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `咨询表-Jaycy-${u.today()}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    u.toast('导出完成 ✅');
   }
 
   // ==================== 手动添加成单（独立，无需关联客户） ====================
