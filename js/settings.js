@@ -25,11 +25,24 @@ JC.Settings = (() => {
       </div>
 
       <div class="card">
-        <div class="card-title mb-12">📥 数据导入</div>
-        <p class="text-sm text-muted mb-8">导入历史数据（一次性操作）</p>
-        <button class="btn btn-warning btn-sm btn-block mb-8" id="btn-import-deals" style="background:#F59E0B;color:#fff;border:none;">📥 导入 45 条历史成单</button>
-        <button class="btn btn-warning btn-sm btn-block" id="btn-import-customers" style="background:#8B5CF6;color:#fff;border:none;">📥 导入 208 条历史咨询</button>
-        <p id="import-status" class="text-xs text-muted mt-4" style="display:none;"></p>
+        <div class="card-title mb-12">📥 Excel 文件导入</div>
+        <p class="text-sm text-muted mb-12">上传 .xlsx 文件，自动解析并导入</p>
+
+        <div style="border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;margin-bottom:12px;cursor:pointer;" id="upload-deals-zone">
+          <div style="font-size:28px;">📊</div>
+          <p class="text-sm mt-4" style="font-weight:600;">导入成单表 Excel</p>
+          <p class="text-xs text-muted mt-4">点击选择 .xlsx 文件</p>
+          <input type="file" id="upload-deals-input" accept=".xlsx,.xls" style="display:none;">
+        </div>
+
+        <div style="border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;" id="upload-customers-zone">
+          <div style="font-size:28px;">📋</div>
+          <p class="text-sm mt-4" style="font-weight:600;">导入咨询表 Excel</p>
+          <p class="text-xs text-muted mt-4">点击选择 .xlsx 文件</p>
+          <input type="file" id="upload-customers-input" accept=".xlsx,.xls" style="display:none;">
+        </div>
+
+        <p id="import-status" class="text-xs mt-8" style="display:none;"></p>
       </div>
 
       <div class="card">
@@ -63,50 +76,65 @@ JC.Settings = (() => {
     });
     document.getElementById('btn-export-customers').addEventListener('click', () => JC.WA.exportCustomersCSV());
     document.getElementById('btn-export-deals').addEventListener('click', () => JC.WA.exportDealsCSV());
-    document.getElementById('btn-import-deals').addEventListener('click', async () => {
-      const btn = document.getElementById('btn-import-deals');
-      const status = document.getElementById('import-status');
-      btn.disabled = true;
-      btn.textContent = '⏳ 导入中...';
-      status.style.display = 'block';
-      status.textContent = '正在导入 45 条成单数据...';
 
+    // 文件上传导入 - 成单表
+    const dealsZone = document.getElementById('upload-deals-zone');
+    const dealsInput = document.getElementById('upload-deals-input');
+    dealsZone.addEventListener('click', () => dealsInput.click());
+    dealsInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('import-status');
+      status.style.display = 'block';
+      status.style.color = 'var(--text-secondary)';
+      status.textContent = '⏳ 正在解析 Excel 文件...';
+      dealsZone.style.opacity = '0.5';
       try {
-        const result = await JC.ImportDeals.importAll((done, total, ok, err) => {
-          status.textContent = `进度: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
+        const result = await JC.ExcelImport.importDeals(file, (done, total, ok, err) => {
+          status.textContent = `📊 导入成单: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
         });
-        status.textContent = `✅ 完成！成功 ${result.success} 条，失败 ${result.fail} 条`;
-        btn.textContent = '✅ 导入完成';
-        u.toast(`导入完成：成功 ${result.success} 条`);
-        // 延迟刷新
-        setTimeout(() => { btn.textContent = '📥 导入 45 条历史成单'; btn.disabled = false; }, 3000);
+        status.style.color = result.fail > 0 ? 'var(--warning)' : 'var(--success)';
+        status.textContent = `✅ 成单导入完成！成功 ${result.success} 条，失败 ${result.fail} 条`;
+        if (result.errors.length > 0) {
+          status.textContent += `\n前3个错误: ${result.errors.slice(0,3).join(' | ')}`;
+        }
+        u.toast(`成单导入: 成功 ${result.success} 条`);
       } catch (e) {
+        status.style.color = 'var(--danger)';
         status.textContent = '❌ 导入失败: ' + (e.message || '未知错误');
-        btn.textContent = '📥 重试导入';
-        btn.disabled = false;
       }
+      dealsZone.style.opacity = '1';
+      dealsInput.value = '';
     });
-    document.getElementById('btn-import-customers').addEventListener('click', async () => {
-      const btn = document.getElementById('btn-import-customers');
-      const status = document.getElementById('import-status');
-      btn.disabled = true;
-      btn.textContent = '⏳ 导入中...';
-      status.style.display = 'block';
-      status.textContent = '正在导入 208 条咨询数据...';
 
+    // 文件上传导入 - 咨询表
+    const custZone = document.getElementById('upload-customers-zone');
+    const custInput = document.getElementById('upload-customers-input');
+    custZone.addEventListener('click', () => custInput.click());
+    custInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('import-status');
+      status.style.display = 'block';
+      status.style.color = 'var(--text-secondary)';
+      status.textContent = '⏳ 正在解析 Excel 文件...';
+      custZone.style.opacity = '0.5';
       try {
-        const result = await JC.ImportCustomers.importAll((done, total, ok, err) => {
-          status.textContent = `进度: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
+        const result = await JC.ExcelImport.importCustomers(file, (done, total, ok, err) => {
+          status.textContent = `📋 导入咨询: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
         });
-        status.textContent = `✅ 完成！成功 ${result.success} 条，失败 ${result.fail} 条`;
-        btn.textContent = '✅ 导入完成';
-        u.toast(`导入完成：成功 ${result.success} 条`);
-        setTimeout(() => { btn.textContent = '📥 导入 208 条历史咨询'; btn.disabled = false; }, 3000);
+        status.style.color = result.fail > 0 ? 'var(--warning)' : 'var(--success)';
+        status.textContent = `✅ 咨询导入完成！成功 ${result.success} 条，失败 ${result.fail} 条`;
+        if (result.errors.length > 0) {
+          status.textContent += `\n前3个错误: ${result.errors.slice(0,3).join(' | ')}`;
+        }
+        u.toast(`咨询导入: 成功 ${result.success} 条`);
       } catch (e) {
+        status.style.color = 'var(--danger)';
         status.textContent = '❌ 导入失败: ' + (e.message || '未知错误');
-        btn.textContent = '📥 重试导入';
-        btn.disabled = false;
       }
+      custZone.style.opacity = '1';
+      custInput.value = '';
     });
     document.getElementById('btn-export-json').addEventListener('click', async () => {
       const [wa, deals, tasks] = await Promise.all([JC.Store.waGetCustomers(), JC.Store.waGetDeals(), JC.Store.getTasks()]);
