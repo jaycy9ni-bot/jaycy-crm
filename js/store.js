@@ -26,9 +26,9 @@ JC.Store = (() => {
   }
 
   async function waSaveCustomer(customer) {
-    const user = await JC.Supabase.getUser();
-    if (!user) throw new Error('未登录');
-    if (!customer.owner_id) customer.owner_id = user.id;
+    const session = await JC.Supabase.getSession();
+    if (!session) throw new Error('未登录，无法保存');
+    if (!customer.owner_id) customer.owner_id = session.user.id;
     // 统一日期格式：YYYY.MM.DD → YYYY-MM-DD
     if (customer.first_inquiry_date) {
       const m = String(customer.first_inquiry_date).match(/(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})/);
@@ -38,7 +38,12 @@ JC.Store = (() => {
       customer.updated_at = new Date().toISOString();
       return await client().from('wa_customers').update(customer).eq('id', customer.id);
     }
-    return await client().from('wa_customers').insert(customer);
+    const { data, error } = await client().from('wa_customers').insert(customer).select();
+    if (error) {
+      console.error('waSaveCustomer error:', error);
+      throw new Error(error.message || '保存客户失败');
+    }
+    return data;
   }
 
   async function waDeleteCustomer(id) {
@@ -55,9 +60,9 @@ JC.Store = (() => {
   }
 
   async function waSaveDeal(deal) {
-    const user = await JC.Supabase.getUser();
-    if (!user) throw new Error('未登录');
-    if (!deal.owner_id) deal.owner_id = user.id;
+    const session = await JC.Supabase.getSession();
+    if (!session) throw new Error('未登录，无法保存');
+    if (!deal.owner_id) deal.owner_id = session.user.id;
     // 统一日期格式：YYYY.MM.DD → YYYY-MM-DD（Supabase DATE 类型要求）
     if (deal.order_date) {
       const m = String(deal.order_date).match(/(\d{4})[\.\-](\d{1,2})[\.\-](\d{1,2})/);
@@ -76,7 +81,12 @@ JC.Store = (() => {
     if (deal.id) {
       return await client().from('wa_deals').update(deal).eq('id', deal.id);
     }
-    return await client().from('wa_deals').insert(deal);
+    const { data, error } = await client().from('wa_deals').insert(deal).select();
+    if (error) {
+      console.error('waSaveDeal error:', error);
+      throw new Error(error.message || '保存成单失败');
+    }
+    return data;
   }
 
   // ==================== 老板通知 ====================

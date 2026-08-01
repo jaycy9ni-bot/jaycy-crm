@@ -55,7 +55,8 @@ JC.Settings = (() => {
       <div class="card">
         <div class="card-title mb-12">🗑️ 数据清理</div>
         <p class="text-sm text-muted mb-8">清理幽灵数据（之前导入失败的残留）</p>
-        <button class="btn btn-danger btn-sm btn-block" id="btn-clean-orphans" style="background:#EF4444;color:#fff;border:none;">🗑️ 清理幽灵数据</button>
+        <button class="btn btn-danger btn-sm btn-block mb-8" id="btn-clean-orphans" style="background:#EF4444;color:#fff;border:none;">🗑️ 清理幽灵数据</button>
+        <button class="btn btn-outline btn-sm btn-block" id="btn-auth-check">🔍 诊断登录状态</button>
         <p id="clean-status" class="text-xs text-muted mt-4" style="display:none;"></p>
       </div>
 
@@ -164,6 +165,17 @@ JC.Settings = (() => {
         status.textContent = '❌ 清理失败: ' + (e.message || '未知错误');
         btn.textContent = '🗑️ 重试清理';
         btn.disabled = false;
+      }
+    });
+    document.getElementById('btn-auth-check').addEventListener('click', async () => {
+      const status = document.getElementById('clean-status');
+      status.style.display = 'block';
+      status.textContent = '正在检查登录状态...';
+      const auth = await JC.Supabase.getAuthStatus();
+      if (auth.ok) {
+        status.textContent = `✅ 已登录，用户: ${auth.user.email}，token前缀: ${auth.token}`;
+      } else {
+        status.textContent = `❌ ${auth.message}`;
       }
     });
   }

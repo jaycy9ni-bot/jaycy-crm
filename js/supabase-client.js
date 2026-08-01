@@ -32,6 +32,16 @@ JC.Supabase = (() => {
     return s ? s.user : null;
   }
 
+  // 诊断当前登录状态
+  async function getAuthStatus() {
+    const c = getClient();
+    if (!c) return { ok: false, message: 'Supabase client 未初始化' };
+    const { data } = await c.auth.getSession();
+    const s = data.session;
+    if (!s) return { ok: false, message: '未登录（无 session）' };
+    return { ok: true, user: s.user, token: s.access_token.slice(0,20) + '...' };
+  }
+
   // 邮箱注册
   async function signUp(email, password) {
     const c = getClient();
@@ -92,6 +102,7 @@ JC.Supabase = (() => {
     getClient,
     getSession,
     getUser,
+    getAuthStatus,
     signUp,
     signIn,
     signOut,
