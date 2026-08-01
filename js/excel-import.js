@@ -69,8 +69,8 @@ JC.ExcelImport = (() => {
   }
 
   // 解析成单表数据
-  function parseDeals(rows) {
-    const headers = rows[0] || [];
+  function parseDeals(rows, headerIdx = 0) {
+    const headers = rows[headerIdx] || [];
     const colMap = {
       orderDate: findCol(headers, ['成单日期', 'order_date']),
       groupDate: findCol(headers, ['拉群日期', 'group_date']),
@@ -93,7 +93,7 @@ JC.ExcelImport = (() => {
     };
 
     const deals = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.every(c => !c)) continue;
 
@@ -128,8 +128,8 @@ JC.ExcelImport = (() => {
   }
 
   // 解析咨询表数据
-  function parseCustomers(rows) {
-    const headers = rows[0] || [];
+  function parseCustomers(rows, headerIdx = 0) {
+    const headers = rows[headerIdx] || [];
     const colMap = {
       firstDate: findCol(headers, ['首询日期', 'first_inquiry']),
       wechatName: findCol(headers, ['微信名', 'wechat_name']),
@@ -145,7 +145,7 @@ JC.ExcelImport = (() => {
     };
 
     const customers = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.every(c => !c)) continue;
 
@@ -186,7 +186,17 @@ JC.ExcelImport = (() => {
   // 导入成单
   async function importDeals(file, progressFn) {
     const rows = await parseFile(file);
-    const deals = parseDeals(rows);
+    // 智能检测表头行
+    let headerIdx = 0;
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const row = rows[i] || [];
+      const joined = row.join('');
+      if (joined.includes('成单日期') || joined.includes('产品') || joined.includes('order_date')) {
+        headerIdx = i;
+        break;
+      }
+    }
+    const deals = parseDeals(rows, headerIdx);
     let success = 0, fail = 0;
     const errors = [];
 
@@ -196,17 +206,27 @@ JC.ExcelImport = (() => {
         success++;
       } catch (e) {
         fail++;
-        errors.push(`第${i+1}行: ${e.message}`);
+        errors.push(`第${i+1}行(${deals[i].product_name}): ${e.message}`);
       }
       if (progressFn) progressFn(i + 1, deals.length, success, fail);
     }
-    return { success, fail, total: deals.length, errors };
+    return { success, fail, total: deals.length, errors, headerIdx, rowsCount: rows.length };
   }
 
   // 导入咨询
   async function importCustomers(file, progressFn) {
     const rows = await parseFile(file);
-    const customers = parseCustomers(rows);
+    // 调试：检测表头行
+    let headerIdx = 0;
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const row = rows[i] || [];
+      const joined = row.join('');
+      if (joined.includes('微信名') || joined.includes('首询') || joined.includes('wechat')) {
+        headerIdx = i;
+        break;
+      }
+    }
+    const customers = parseCustomers(rows, headerIdx);
     let success = 0, fail = 0;
     const errors = [];
 
@@ -216,11 +236,11 @@ JC.ExcelImport = (() => {
         success++;
       } catch (e) {
         fail++;
-        errors.push(`第${i+1}行: ${e.message}`);
+        errors.push(`${customers[i].wechat_name}: ${e.message}`);
       }
       if (progressFn) progressFn(i + 1, customers.length, success, fail);
     }
-    return { success, fail, total: customers.length, errors };
+    return { success, fail, total: customers.length, errors, headerIdx, rowsCount: rows.length };
   }
 
   return { importDeals, importCustomers, parseFile, parseDeals, parseCustomers };
