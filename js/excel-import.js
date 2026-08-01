@@ -207,6 +207,8 @@ JC.ExcelImport = (() => {
       } catch (e) {
         fail++;
         errors.push(`第${i+1}行(${deals[i].product_name}): ${e.message}`);
+        // 第一条失败就立刻返回，方便诊断
+        return { success, fail, total: deals.length, errors, headerIdx, rowsCount: rows.length, firstError: e.message };
       }
       if (progressFn) progressFn(i + 1, deals.length, success, fail);
     }
@@ -237,6 +239,8 @@ JC.ExcelImport = (() => {
       } catch (e) {
         fail++;
         errors.push(`${customers[i].wechat_name}: ${e.message}`);
+        // 第一条失败就立刻返回，方便诊断
+        return { success, fail, total: customers.length, errors, headerIdx, rowsCount: rows.length, firstError: e.message };
       }
       if (progressFn) progressFn(i + 1, customers.length, success, fail);
     }

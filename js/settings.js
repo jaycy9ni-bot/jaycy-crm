@@ -95,11 +95,8 @@ JC.Settings = (() => {
           status.textContent = `📊 导入成单: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
         });
         status.style.color = result.fail > 0 ? 'var(--warning)' : 'var(--success)';
-        status.textContent = `✅ 成单导入完成！成功 ${result.success} 条，失败 ${result.fail} 条（共解析 ${result.total} 条，表头在第${result.headerIdx+1}行）`;
-        if (result.errors.length > 0) {
-          status.textContent += `\n错误示例: ${result.errors.slice(0,3).join(' | ')}`;
-        }
-        u.toast(`成单导入: 成功 ${result.success} 条`);
+        status.textContent = `❌ 导入中断！成功 ${result.success} 条，失败 ${result.fail} 条。错误: ${result.firstError || result.errors[0] || '未知错误'}`;
+        u.toast(`导入失败: ${result.firstError || '请检查'}`);
       } catch (e) {
         status.style.color = 'var(--danger)';
         status.textContent = '❌ 导入失败: ' + (e.message || '未知错误');
@@ -125,11 +122,8 @@ JC.Settings = (() => {
           status.textContent = `📋 导入咨询: ${done}/${total} · 成功 ${ok} · 失败 ${err}`;
         });
         status.style.color = result.fail > 0 ? 'var(--warning)' : 'var(--success)';
-        status.textContent = `✅ 咨询导入完成！成功 ${result.success} 条，失败 ${result.fail} 条（共解析 ${result.total} 条，表头在第${result.headerIdx+1}行）`;
-        if (result.errors.length > 0) {
-          status.textContent += `\n错误示例: ${result.errors.slice(0,3).join(' | ')}`;
-        }
-        u.toast(`咨询导入: 成功 ${result.success} 条`);
+        status.textContent = `❌ 导入中断！成功 ${result.success} 条，失败 ${result.fail} 条。错误: ${result.firstError || result.errors[0] || '未知错误'}`;
+        u.toast(`导入失败: ${result.firstError || '请检查'}`);
       } catch (e) {
         status.style.color = 'var(--danger)';
         status.textContent = '❌ 导入失败: ' + (e.message || '未知错误');
